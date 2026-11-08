@@ -257,6 +257,7 @@ async function loadBrief() {
     const n = b.now;
     const pills = [];
     if (n.t1h !== null) pills.push(`<span class="pill">지금 ${n.t1h}°</span>`);
+    if (b.today && b.today.tmx !== null && b.today.tmn !== null) pills.push(`<span class="pill">최고 ${b.today.tmx}° · 최저 ${b.today.tmn}°</span>`);
     if (n.ptyName) pills.push(`<span class="pill rain">${n.ptyName} 오는 중</span>`);
     if (n.reh !== null) pills.push(`<span class="pill">습도 ${n.reh}%</span>`);
     if (n.wsd !== null) pills.push(`<span class="pill">바람 ${n.wsd}m/s</span>`);
