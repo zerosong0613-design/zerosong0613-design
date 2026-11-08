@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>구름창</title>
+<meta name="theme-color" content="#0d1013">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="구름창">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* 레이아웃: 한 화면 관측 콘솔 — 위에서 아래로 상태줄 → 영상 → 시간축 → 출처 */
+:root {
+  --ink: #0d1013;        /* 배경 */
+  --panel: #151a1f;      /* 조작부 */
+  --line: #252d35;       /* 구분선 */
+  --paper: #e6eaee;      /* 본문 */
+  --muted: #8794a1;      /* 보조 글자 */
+  --signal: #ffb547;     /* 실시간·선택 표시 (경보등 호박색) */
+  --warn: #ff6b5a;       /* 오류 */
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--ink); color: var(--paper); font-family: var(--f-body);
+  font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+  display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; }
+h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+.status { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 7px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.live { background: var(--signal); box-shadow: 0 0 0 3px rgba(255,181,71,.18); }
+.dot.err { background: var(--warn); }
+
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 16px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.modes button { background: var(--panel); border: 0; padding: 10px 4px; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; }
+.modes button + button { border-left: 1px solid var(--line); }
+.modes button[aria-pressed="true"] { color: var(--ink); background: var(--signal); font-weight: 600; }
+
+.chips { display: flex; gap: 6px; padding: 10px 16px 0; overflow-x: auto; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chips button { flex: none; border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 12px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.chips button[aria-pressed="true"] { border-color: var(--signal); color: var(--signal); }
+.chips button small { font-family: var(--f-mono); font-size: 11px; opacity: .75; margin-left: 4px; }
+
+.note { padding: 8px 16px 0; font-size: 13px; color: var(--muted); min-height: 1.45em; }
+
+.stage { position: relative; flex: 1 1 auto; min-height: 240px; margin: 10px 0 0; overflow: auto; background: #000; touch-action: pan-x pan-y pinch-zoom; }
+.stage img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.stage.zoom img { width: 200%; height: auto; max-width: none; object-fit: initial; }
+.stage .msg { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); font-size: 14px; }
+.stage .msg strong { display: block; color: var(--paper); font-weight: 600; margin-bottom: 6px; }
+.stage .msg code { font-family: var(--f-mono); font-size: 12px; color: var(--signal); }
+.stamp { position: absolute; left: 10px; top: 10px; font-family: var(--f-mono); font-size: 12px; padding: 3px 7px; border-radius: 6px; background: rgba(13,16,19,.78); color: var(--paper); pointer-events: none; font-variant-numeric: tabular-nums; }
+.zoombtn { position: absolute; right: 10px; top: 10px; border: 1px solid var(--line); background: rgba(13,16,19,.78); border-radius: 8px; padding: 4px 9px; font-size: 12px; cursor: pointer; }
+
+.timeline { background: var(--panel); border-top: 1px solid var(--line); padding: 12px 16px 10px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; }
+.play { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--ink); cursor: pointer; display: grid; place-items: center; }
+.play svg { width: 16px; height: 16px; fill: var(--paper); }
+.play[aria-pressed="true"] { border-color: var(--signal); }
+.play[aria-pressed="true"] svg { fill: var(--signal); }
+input[type="range"] { width: 100%; accent-color: var(--signal); }
+.range-wrap { display: grid; gap: 2px; }
+.ticks { display: flex; justify-content: space-between; font-family: var(--f-mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.load { font-family: var(--f-mono); font-size: 11px; color: var(--muted); text-align: right; min-width: 44px; font-variant-numeric: tabular-nums; }
+.refresh { border: 1px solid var(--line); background: var(--ink); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; cursor: pointer; }
+
+footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 16px 12px; font-size: 11.5px; color: var(--muted); background: var(--panel); }
+footer a { color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (min-width: 720px) {
+  body { max-width: 760px; margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>구름창</h1>
+  <div class="status" id="status"><span class="dot" id="dot"></span><span id="statusText">불러오는 중</span></div>
+</header>
+
+<div class="modes" role="group" aria-label="영상 종류">
+  <button id="m-radar" data-mode="radar" aria-pressed="true">레이더 강수</button>
+  <button id="m-sat" data-mode="sat" aria-pressed="false">위성 구름</button>
+  <button id="m-qpf" data-mode="qpf" aria-pressed="false">앞으로 2시간</button>
+</div>
+
+<div class="chips" id="chips" role="group" aria-label="위성 채널"></div>
+<p class="note" id="note"></p>
+
+<div class="stage" id="stage">
+  <img id="img" alt="">
+  <div class="stamp" id="stamp" hidden></div>
+  <button class="zoombtn" id="zoomBtn" aria-pressed="false">2배</button>
+  <div class="msg" id="msg"><div><strong>영상을 불러오는 중이에요</strong>기상청 서버에서 받는 데 몇 초 걸릴 수 있어요.</div></div>
+</div>
+
+<div class="timeline">
+  <button class="play" id="play" aria-pressed="false" aria-label="재생">
+    <svg viewBox="0 0 16 16" id="playIcon"><path d="M4 2.5v11l9-5.5z"/></svg>
+  </button>
+  <div class="range-wrap">
+    <input type="range" id="range" min="0" max="0" value="0" aria-label="시각 선택">
+    <div class="ticks"><span id="tickL">-</span><span id="tickR">-</span></div>
+  </div>
+  <div style="display:grid;gap:6px;justify-items:end">
+    <button class="refresh" id="refresh">새로고침</button>
+    <span class="load" id="load"></span>
+  </div>
+</div>
+
+<footer>
+  <span>자료: 기상청 API허브 · 공공누리 제1유형</span>
+  <a href="https://www.weather.go.kr/w/weather/radar/rain.do">날씨누리에서 보기</a>
+</footer>
+
+<script>
+const PROXY = "https://vtxdqesewrsgyhzdvhfo.supabase.co/functions/v1/kma-proxy";
+const FRAMES = 13; // 2시간치(10분 간격) + 현재
+
+const SAT_CH = [
+  { obs: "ir105", name: "적외", wl: "10.5μm", note: "밤낮 상관없이 보여요. 하얄수록 높고 차가운 구름이에요." },
+  { obs: "vi006", name: "가시", wl: "0.64μm", note: "사진처럼 보이지만 해가 있을 때만 찍혀요. 밤에는 검게 나와요." },
+  { obs: "wv069", name: "수증기", wl: "6.9μm", note: "중층 대기의 수증기예요. 구름이 생기기 전 습한 공기 흐름이 보여요." },
+  { obs: "sw038", name: "단파적외", wl: "3.8μm", note: "밤에 안개와 낮은 구름을 찾을 때 좋아요." },
+];
+const NOTES = {
+  radar: "날씨누리 레이더 강수와 같은 HSR 강수강도예요. 5분마다 갱신되고 10~20분쯤 늦게 올라와요.",
+  qpf: "지금 레이더를 바탕으로 10분 뒤부터 2시간 뒤까지 비구름 위치를 예측한 영상이에요.",
+};
+
+const S = { mode: "radar", obs: "ir105", frames: [], idx: 0, timer: null, token: 0, zoom: false };
+try {
+  const saved = JSON.parse(localStorage.getItem("gureumchang") || "{}");
+  if (["sat", "radar", "qpf"].includes(saved.mode)) S.mode = saved.mode;
+  if (SAT_CH.some(c => c.obs === saved.obs)) S.obs = saved.obs;
+} catch (e) {}
+const save = () => { try { localStorage.setItem("gureumchang", JSON.stringify({ mode: S.mode, obs: S.obs })); } catch (e) {} };
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
+const parseTm = s => new Date(Date.UTC(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8), +s.slice(8,10), +s.slice(10,12)) - 9*3600e3);
+const fmtTm = d => { const k = new Date(d.getTime() + 9*3600e3); return `${k.getUTCFullYear()}${pad(k.getUTCMonth()+1)}${pad(k.getUTCDate())}${pad(k.getUTCHours())}${pad(k.getUTCMinutes())}`; };
+const hhmm = d => { const k = new Date(d.getTime() + 9*3600e3); return `${pad(k.getUTCHours())}:${pad(k.getUTCMinutes())}`; };
+const ago = d => { const m = Math.round((Date.now() - d.getTime()) / 60000); return m < 1 ? "방금" : m < 60 ? `${m}분 전` : `${Math.floor(m/60)}시간 ${m%60}분 전`; };
+
+function setStatus(text, state) { $("statusText").textContent = text; $("dot").className = "dot" + (state ? " " + state : ""); }
+function showMsg(title, body) { $("msg").hidden = false; $("msg").innerHTML = `<div><strong>${title}</strong>${body || ""}</div>`; }
+function hideMsg() { $("msg").hidden = true; }
+
+async function getImage(params) {
+  const q = new URLSearchParams(params);
+  const res = await fetch(`${PROXY}?${q}`);
+  const type = res.headers.get("content-type") || "";
+  if (!res.ok || !type.includes("image")) {
+    let info = {};
+    try { info = await res.json(); } catch (e) {}
+    const err = new Error(info.error || `응답 오류 ${res.status}`);
+    err.detail = info.detail || ""; err.status = res.status;
+    throw err;
+  }
+  const blob = await res.blob();
+  return { url: URL.createObjectURL(blob), tm: res.headers.get("x-kma-tm") };
+}
+
+function explain(err) {
+  const d = (err.detail || "").toLowerCase();
+  if (err.status === 503) return ["인증키가 아직 등록되지 않았어요", "Supabase Secrets에 <code>KMA_AUTH_KEY</code>를 넣어주세요."];
+  if (d.includes("403") || d.includes("권한") || d.includes("활용") || d.includes("auth")) return ["이 API의 활용신청이 필요해요", "기상청 API허브에서 해당 API를 활용신청한 뒤 다시 열어주세요."];
+  if (!navigator.onLine) return ["인터넷 연결이 끊겼어요", "연결되면 새로고침을 눌러주세요."];
+  return ["영상을 받지 못했어요", "기상청 서버가 잠시 느릴 수 있어요. 잠시 뒤 새로고침을 눌러주세요."];
+}
+
+function renderControls() {
+  for (const b of document.querySelectorAll(".modes button")) b.setAttribute("aria-pressed", String(b.dataset.mode === S.mode));
+  const chips = $("chips");
+  if (S.mode === "sat") {
+    chips.hidden = false;
+    chips.innerHTML = SAT_CH.map(c => `<button id="ch-${c.obs}" data-obs="${c.obs}" aria-pressed="${c.obs === S.obs}">${c.name}<small>${c.wl}</small></button>`).join("");
+    $("note").textContent = SAT_CH.find(c => c.obs === S.obs).note;
+  } else {
+    chips.hidden = true; chips.innerHTML = "";
+    $("note").textContent = NOTES[S.mode];
+  }
+}
+
+function frameLabel(f) { return S.mode === "qpf" ? `+${f.ef}분 · ${hhmm(f.at)}` : `${hhmm(f.at)} KST`; }
+
+function show(i) {
+  const f = S.frames[i];
+  if (!f) return;
+  S.idx = i; $("range").value = String(i);
+  if (f.url) {
+    $("img").src = f.url; $("img").alt = `${S.mode === "radar" ? "레이더" : S.mode === "qpf" ? "강수예측" : "위성"} 영상 ${frameLabel(f)}`;
+    $("stamp").hidden = false; $("stamp").textContent = frameLabel(f); hideMsg();
+  }
+}
+
+function updateTicks() {
+  const fs = S.frames;
+  if (!fs.length) { $("tickL").textContent = "-"; $("tickR").textContent = "-"; return; }
+  $("tickL").textContent = S.mode === "qpf" ? `+${fs[0].ef}분` : hhmm(fs[0].at);
+  $("tickR").textContent = S.mode === "qpf" ? `+${fs[fs.length-1].ef}분` : "지금";
+  const ok = fs.filter(f => f.url).length;
+  $("load").textContent = ok < fs.length ? `${ok}/${fs.length}` : "";
+}
+
+function stop() { clearInterval(S.timer); S.timer = null; $("play").setAttribute("aria-pressed", "false"); $("play").setAttribute("aria-label", "재생"); $("playIcon").innerHTML = '<path d="M4 2.5v11l9-5.5z"/>'; }
+function play() {
+  if (S.frames.filter(f => f.url).length < 2) return;
+  $("play").setAttribute("aria-pressed", "true"); $("play").setAttribute("aria-label", "정지");
+  $("playIcon").innerHTML = '<path d="M3.5 2.5h3v11h-3zM9.5 2.5h3v11h-3z"/>';
+  S.timer = setInterval(() => {
+    let j = S.idx;
+    for (let k = 0; k < S.frames.length; k++) { j = (j + 1) % S.frames.length; if (S.frames[j].url) break; }
+    show(j);
+  }, 450);
+}
+
+async function load() {
+  const token = ++S.token;
+  stop();
+  S.frames.forEach(f => f.url && URL.revokeObjectURL(f.url));
+  S.frames = []; updateTicks();
+  $("img").removeAttribute("src"); $("stamp").hidden = true;
+  showMsg("영상을 불러오는 중이에요", "기상청 서버에서 받는 데 몇 초 걸릴 수 있어요.");
+  setStatus("불러오는 중");
+
+  const base = S.mode === "sat" ? { kind: "sat", obs: S.obs } : S.mode === "radar" ? { kind: "radar" } : { kind: "qpf", ef: 60 };
+  let latest;
+  try { latest = await getImage(base); }
+  catch (err) {
+    if (token !== S.token) return;
+    const [t, b] = explain(err); showMsg(t, b); setStatus("받지 못함", "err"); return;
+  }
+  if (token !== S.token) { URL.revokeObjectURL(latest.url); return; }
+  const at = parseTm(latest.tm);
+
+  if (S.mode === "qpf") {
+    S.frames = Array.from({ length: 12 }, (_, i) => ({ ef: (i + 1) * 10, at: new Date(at.getTime() + (i + 1) * 600e3), url: null }));
+    S.frames[5].url = latest.url;
+    $("range").max = String(S.frames.length - 1); show(5);
+    setStatus(`예측 기준 ${hhmm(at)}`, "live");
+  } else {
+    S.frames = Array.from({ length: FRAMES }, (_, i) => ({ at: new Date(at.getTime() - (FRAMES - 1 - i) * 600e3), url: null }));
+    S.frames[FRAMES - 1].url = latest.url;
+    $("range").max = String(FRAMES - 1); show(FRAMES - 1);
+    setStatus(`${hhmm(at)} 관측 · ${ago(at)}`, "live");
+  }
+  updateTicks();
+
+  // 나머지 프레임은 최신 쪽부터 두 장씩 받아오기
+  const todo = S.frames.map((f, i) => i).filter(i => !S.frames[i].url).reverse();
+  const worker = async () => {
+    while (todo.length) {
+      const i = todo.shift();
+      const f = S.frames[i];
+      const p = S.mode === "qpf" ? { kind: "qpf", ef: f.ef, tm: latest.tm } : { ...base, tm: fmtTm(f.at) };
+      try {
+        const r = await getImage(p);
+        if (token !== S.token) { URL.revokeObjectURL(r.url); return; }
+        f.url = r.url;
+        if (S.idx === i) show(i);
+      } catch (e) { if (token !== S.token) return; f.missing = true; }
+      updateTicks();
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  if (token !== S.token) return;
+  // 받지 못한 프레임은 시간축에서 뺌
+  const keep = S.frames.filter(f => f.url);
+  const cur = S.frames[S.idx];
+  S.frames = keep; $("range").max = String(Math.max(0, keep.length - 1));
+  show(Math.max(0, keep.indexOf(cur)));
+  updateTicks();
+}
+
+document.querySelector(".modes").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || b.dataset.mode === S.mode) return;
+  S.mode = b.dataset.mode; save(); renderControls(); load();
+});
+$("chips").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || b.dataset.obs === S.obs) return;
+  S.obs = b.dataset.obs; save(); renderControls(); load();
+});
+$("range").addEventListener("input", e => { stop(); show(+e.target.value); });
+$("play").addEventListener("click", () => S.timer ? stop() : play());
+$("refresh").addEventListener("click", load);
+$("zoomBtn").addEventListener("click", () => {
+  S.zoom = !S.zoom; $("stage").classList.toggle("zoom", S.zoom);
+  $("zoomBtn").setAttribute("aria-pressed", String(S.zoom)); $("zoomBtn").textContent = S.zoom ? "맞춤" : "2배";
+});
+
+// 화면을 다시 볼 때 5분 넘게 지났으면 새로 받기
+let loadedAt = Date.now();
+const origLoad = load;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && Date.now() - loadedAt > 5 * 60e3) { loadedAt = Date.now(); origLoad(); }
+});
+setInterval(() => { if (document.visibilityState === "visible" && !S.timer) { loadedAt = Date.now(); origLoad(); } }, 10 * 60e3);
+
+renderControls();
+load();
+</script>
+</body>
+</html>
