@@ -4,127 +4,157 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>구름창</title>
-<meta name="theme-color" content="#0d1013">
+<meta name="theme-color" content="#dff0ff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="구름창">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
 <style>
-/* 레이아웃: 한 화면 관측 콘솔 — 위에서 아래로 상태줄 → 영상 → 시간축 → 출처 */
+/* 컨셉: 햄스터 기상캐스터 — 하늘색 바탕에 크림색 스티커 카드, 굵은 남색 테두리.
+   위에서 아래로: 햄스터+오늘 한 줄 → 6시간 예보 → 영상(레이더/위성/예측) → 시간축 */
 :root {
-  --ink: #0d1013;        /* 배경 */
-  --panel: #151a1f;      /* 조작부 */
-  --line: #252d35;       /* 구분선 */
-  --paper: #e6eaee;      /* 본문 */
-  --muted: #8794a1;      /* 보조 글자 */
-  --signal: #ffb547;     /* 실시간·선택 표시 (경보등 호박색) */
-  --warn: #ff6b5a;       /* 오류 */
-  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
-  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  color-scheme: dark;
+  --sky: #dff0ff;      /* 배경 하늘 */
+  --cream: #fffaf0;    /* 카드 */
+  --ink: #23344a;      /* 글자·테두리 (검정 대신 남색) */
+  --muted: #61758b;    /* 보조 글자 */
+  --butter: #ffd24d;   /* 선택·강조 (버터 노랑) */
+  --rain: #3d8bef;     /* 비 (의미색) */
+  --cheek: #ff9fa8;    /* 볼터치 */
+  --f-display: "Jua", "Apple SD Gothic Neo", sans-serif;
+  --f-body: "Gowun Dodum", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --radius: 22px;
+  --pop: 0 3px 0 var(--ink);
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { height: 100%; margin: 0; }
+html { background: var(--sky); }
 body {
-  background: var(--ink); color: var(--paper); font-family: var(--f-body);
-  font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased;
-  display: flex; flex-direction: column;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  margin: 0; min-height: 100%; background: var(--sky); color: var(--ink);
+  font-family: var(--f-body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+  padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 20px) calc(env(safe-area-inset-left) + 16px);
+  display: grid; gap: 14px; max-width: 560px; margin-inline: auto;
 }
 button { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--rain); outline-offset: 2px; }
 
-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; }
-h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
-.status { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 7px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
-.dot.live { background: var(--signal); box-shadow: 0 0 0 3px rgba(255,181,71,.18); }
-.dot.err { background: var(--warn); }
+.card { background: var(--cream); border: 2px solid var(--ink); border-radius: var(--radius); box-shadow: var(--pop); }
 
-.modes { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 16px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.modes button { background: var(--panel); border: 0; padding: 10px 4px; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; }
-.modes button + button { border-left: 1px solid var(--line); }
-.modes button[aria-pressed="true"] { color: var(--ink); background: var(--signal); font-weight: 600; }
+/* 1. 오늘 한 줄 */
+.hello { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: center; padding: 14px 16px 14px 10px; }
+.hello svg { width: 92px; height: 92px; display: block; }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.brand h1 { margin: 0; font-family: var(--f-display); font-size: 17px; font-weight: 400; color: var(--muted); }
+.brand .when { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.headline { margin: 2px 0 0; font-family: var(--f-display); font-weight: 400; font-size: 25px; line-height: 1.2; text-wrap: balance; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.nowline { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pill { display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid var(--ink); border-radius: 999px; padding: 1px 9px; font-size: 13px; background: #fff; font-variant-numeric: tabular-nums; }
+.pill.rain { background: var(--rain); color: #fff; border-color: var(--rain); }
 
-.chips { display: flex; gap: 6px; padding: 10px 16px 0; overflow-x: auto; scrollbar-width: none; }
+/* 2. 6시간 예보 */
+.hours { padding: 12px 10px 10px; }
+.hours h2, .viewer h2 { margin: 0 6px 8px; font-family: var(--f-display); font-weight: 400; font-size: 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.hours h2 small, .viewer h2 small { font-family: var(--f-body); font-size: 12px; color: var(--muted); }
+.strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.slot { border-radius: 14px; padding: 8px 2px 7px; text-align: center; background: #fff; border: 1.5px solid #d7e3ef; display: grid; gap: 2px; justify-items: center; }
+.slot.wet { background: #e6f1ff; border-color: var(--rain); }
+.slot .hh { font-family: var(--f-display); font-size: 14px; }
+.slot svg { width: 30px; height: 30px; }
+.slot .t { font-size: 14px; font-variant-numeric: tabular-nums; }
+.slot .r { font-size: 11px; color: var(--rain); min-height: 1.3em; line-height: 1.2; }
+.cellnote { margin: 8px 6px 0; font-size: 12px; color: var(--muted); }
+
+/* 3. 영상 */
+.viewer { padding: 12px 10px 12px; }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+.tabs button { border: 2px solid var(--ink); background: #fff; border-radius: 14px; padding: 8px 2px; font-family: var(--f-display); font-size: 15px; cursor: pointer; box-shadow: 0 2px 0 var(--ink); }
+.tabs button[aria-pressed="true"] { background: var(--butter); }
+.tabs button:active { transform: translateY(2px); box-shadow: none; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 0 8px; padding: 2px; }
 .chips::-webkit-scrollbar { display: none; }
-.chips button { flex: none; border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 12px; font-size: 13px; color: var(--muted); cursor: pointer; }
-.chips button[aria-pressed="true"] { border-color: var(--signal); color: var(--signal); }
-.chips button small { font-family: var(--f-mono); font-size: 11px; opacity: .75; margin-left: 4px; }
-
-.note { padding: 8px 16px 0; font-size: 13px; color: var(--muted); min-height: 1.45em; }
-
-.stage { position: relative; flex: 1 1 auto; min-height: 240px; margin: 10px 0 0; overflow: auto; background: #000; touch-action: pan-x pan-y pinch-zoom; }
+.chips button { flex: none; border: 1.5px solid var(--ink); background: #fff; border-radius: 999px; padding: 3px 11px; font-size: 13px; cursor: pointer; }
+.chips button[aria-pressed="true"] { background: var(--ink); color: var(--cream); }
+.note { margin: 0 4px 8px; font-size: 13px; color: var(--muted); }
+.stage { position: relative; aspect-ratio: 1 / 1; border-radius: 16px; overflow: auto; background: #0e2236; border: 2px solid var(--ink); touch-action: pan-x pan-y pinch-zoom; }
 .stage img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.stage.zoom img { width: 200%; height: auto; max-width: none; object-fit: initial; }
-.stage .msg { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); font-size: 14px; }
-.stage .msg strong { display: block; color: var(--paper); font-weight: 600; margin-bottom: 6px; }
-.stage .msg code { font-family: var(--f-mono); font-size: 12px; color: var(--signal); }
-.stamp { position: absolute; left: 10px; top: 10px; font-family: var(--f-mono); font-size: 12px; padding: 3px 7px; border-radius: 6px; background: rgba(13,16,19,.78); color: var(--paper); pointer-events: none; font-variant-numeric: tabular-nums; }
-.zoombtn { position: absolute; right: 10px; top: 10px; border: 1px solid var(--line); background: rgba(13,16,19,.78); border-radius: 8px; padding: 4px 9px; font-size: 12px; cursor: pointer; }
+.stage.zoom img { width: 200%; height: auto; max-width: none; }
+.stage .msg { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: #c9d8e8; font-size: 14px; }
+.stage .msg strong { display: block; color: #fff; font-family: var(--f-display); font-weight: 400; font-size: 17px; margin-bottom: 4px; }
+.stamp { position: absolute; left: 8px; top: 8px; font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--cream); border: 1.5px solid var(--ink); font-variant-numeric: tabular-nums; pointer-events: none; }
+.zoombtn { position: absolute; right: 8px; top: 8px; border: 1.5px solid var(--ink); background: var(--cream); border-radius: 999px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
+.timeline { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; margin-top: 10px; }
+.play { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--ink); background: var(--butter); cursor: pointer; display: grid; place-items: center; box-shadow: 0 2px 0 var(--ink); }
+.play svg { width: 16px; height: 16px; fill: var(--ink); }
+.play:active { transform: translateY(2px); box-shadow: none; }
+input[type="range"] { width: 100%; accent-color: var(--rain); }
+.ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.side { display: grid; justify-items: end; gap: 3px; }
+.refresh { border: 1.5px solid var(--ink); background: #fff; border-radius: 999px; padding: 4px 11px; font-size: 13px; cursor: pointer; }
+.load { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.2em; }
 
-.timeline { background: var(--panel); border-top: 1px solid var(--line); padding: 12px 16px 10px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; }
-.play { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--ink); cursor: pointer; display: grid; place-items: center; }
-.play svg { width: 16px; height: 16px; fill: var(--paper); }
-.play[aria-pressed="true"] { border-color: var(--signal); }
-.play[aria-pressed="true"] svg { fill: var(--signal); }
-input[type="range"] { width: 100%; accent-color: var(--signal); }
-.range-wrap { display: grid; gap: 2px; }
-.ticks { display: flex; justify-content: space-between; font-family: var(--f-mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.load { font-family: var(--f-mono); font-size: 11px; color: var(--muted); text-align: right; min-width: 44px; font-variant-numeric: tabular-nums; }
-.refresh { border: 1px solid var(--line); background: var(--ink); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; cursor: pointer; }
-
-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 16px 12px; font-size: 11.5px; color: var(--muted); background: var(--panel); }
+footer { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); padding: 0 4px; }
 footer a { color: var(--muted); }
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-@media (min-width: 720px) {
-  body { max-width: 760px; margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+.err { color: #c2412d; }
+@media (prefers-reduced-motion: no-preference) {
+  .bob { animation: bob 3.2s ease-in-out infinite; transform-origin: 50% 100%; }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
 }
 </style>
 </head>
 <body>
-<header>
-  <h1>구름창</h1>
-  <div class="status" id="status"><span class="dot" id="dot"></span><span id="statusText">불러오는 중</span></div>
-</header>
 
-<div class="modes" role="group" aria-label="영상 종류">
-  <button id="m-radar" data-mode="radar" aria-pressed="true">레이더 강수</button>
-  <button id="m-sat" data-mode="sat" aria-pressed="false">위성 구름</button>
-  <button id="m-qpf" data-mode="qpf" aria-pressed="false">앞으로 2시간</button>
-</div>
-
-<div class="chips" id="chips" role="group" aria-label="위성 채널"></div>
-<p class="note" id="note"></p>
-
-<div class="stage" id="stage">
-  <img id="img" alt="">
-  <div class="stamp" id="stamp" hidden></div>
-  <button class="zoombtn" id="zoomBtn" aria-pressed="false">2배</button>
-  <div class="msg" id="msg"><div><strong>영상을 불러오는 중이에요</strong>기상청 서버에서 받는 데 몇 초 걸릴 수 있어요.</div></div>
-</div>
-
-<div class="timeline">
-  <button class="play" id="play" aria-pressed="false" aria-label="재생">
-    <svg viewBox="0 0 16 16" id="playIcon"><path d="M4 2.5v11l9-5.5z"/></svg>
-  </button>
-  <div class="range-wrap">
-    <input type="range" id="range" min="0" max="0" value="0" aria-label="시각 선택">
-    <div class="ticks"><span id="tickL">-</span><span id="tickR">-</span></div>
+<section class="card hello" aria-live="polite">
+  <svg id="ham" viewBox="0 0 100 100" role="img" aria-label="햄스터 기상캐스터"></svg>
+  <div>
+    <div class="brand"><h1>구름창 · 우리 동네</h1><span class="when" id="when"></span></div>
+    <p class="headline" id="headline">하늘을 살펴보는 중이에요</p>
+    <p class="sub" id="sub">기상청 예보를 받아오고 있어요.</p>
+    <div class="nowline" id="nowline"></div>
   </div>
-  <div style="display:grid;gap:6px;justify-items:end">
-    <button class="refresh" id="refresh">새로고침</button>
-    <span class="load" id="load"></span>
+</section>
+
+<section class="card hours">
+  <h2>앞으로 6시간 <small id="fcstBase"></small></h2>
+  <div class="strip" id="strip"></div>
+  <p class="cellnote" id="cellnote"></p>
+</section>
+
+<section class="card viewer">
+  <div class="tabs" role="group" aria-label="영상 종류">
+    <button id="m-radar" data-mode="radar" aria-pressed="true">레이더 강수</button>
+    <button id="m-qpf" data-mode="qpf" aria-pressed="false">앞으로 2시간</button>
+    <button id="m-sat" data-mode="sat" aria-pressed="false">위성 구름</button>
   </div>
-</div>
+  <div class="chips" id="chips" role="group" aria-label="위성 채널"></div>
+  <p class="note" id="note"></p>
+  <div class="stage" id="stage">
+    <img id="img" alt="">
+    <div class="stamp" id="stamp" hidden></div>
+    <button class="zoombtn" id="zoomBtn" aria-pressed="false">2배</button>
+    <div class="msg" id="msg"><div><strong>영상 불러오는 중</strong>몇 초 걸릴 수 있어요.</div></div>
+  </div>
+  <div class="timeline">
+    <button class="play" id="play" aria-pressed="false" aria-label="재생">
+      <svg viewBox="0 0 16 16" id="playIcon"><path d="M4 2.5v11l9-5.5z"/></svg>
+    </button>
+    <div>
+      <input type="range" id="range" min="0" max="0" value="0" aria-label="시각 선택">
+      <div class="ticks"><span id="tickL">-</span><span id="tickR">-</span></div>
+    </div>
+    <div class="side">
+      <button class="refresh" id="refresh">새로고침</button>
+      <span class="load" id="load"></span>
+    </div>
+  </div>
+</section>
 
 <footer>
   <span>자료: 기상청 API허브 · 공공누리 제1유형</span>
@@ -133,19 +163,128 @@ footer a { color: var(--muted); }
 
 <script>
 const PROXY = "https://vtxdqesewrsgyhzdvhfo.supabase.co/functions/v1/kma-proxy";
-const FRAMES = 13; // 2시간치(10분 간격) + 현재
+const FRAMES = 13;
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
 
+/* ---------- 햄스터 (기분에 따라 소품이 바뀜) ---------- */
+function hamster(mood) {
+  const body = `
+    <g class="bob">
+      <ellipse cx="50" cy="92" rx="26" ry="4" fill="#23344a" opacity=".12"/>
+      <circle cx="31" cy="40" r="9" fill="#e9a96b" stroke="#23344a" stroke-width="2.5"/>
+      <circle cx="31" cy="40" r="4.5" fill="#ff9fa8"/>
+      <circle cx="69" cy="40" r="9" fill="#e9a96b" stroke="#23344a" stroke-width="2.5"/>
+      <circle cx="69" cy="40" r="4.5" fill="#ff9fa8"/>
+      <ellipse cx="50" cy="66" rx="30" ry="26" fill="#f3c08a" stroke="#23344a" stroke-width="2.5"/>
+      <ellipse cx="50" cy="74" rx="17" ry="14" fill="#fff4e3"/>
+      <circle cx="40" cy="60" r="3" fill="#23344a"/>
+      <circle cx="60" cy="60" r="3" fill="#23344a"/>
+      <circle cx="41" cy="59" r="1" fill="#fff"/>
+      <circle cx="61" cy="59" r="1" fill="#fff"/>
+      <ellipse cx="33" cy="67" rx="5" ry="3.2" fill="#ff9fa8" opacity=".85"/>
+      <ellipse cx="67" cy="67" rx="5" ry="3.2" fill="#ff9fa8" opacity=".85"/>
+      <path d="M48 64.5 q2 2 4 0" fill="none" stroke="#23344a" stroke-width="2" stroke-linecap="round"/>
+      <path d="M50 66.5 v2" stroke="#23344a" stroke-width="2" stroke-linecap="round"/>
+      <ellipse cx="38" cy="86" rx="6" ry="3.5" fill="#f3c08a" stroke="#23344a" stroke-width="2"/>
+      <ellipse cx="62" cy="86" rx="6" ry="3.5" fill="#f3c08a" stroke="#23344a" stroke-width="2"/>
+    </g>`;
+  const umbrella = `
+    <g class="bob">
+      <path d="M74 50 V82 q0 5 -5 5" fill="none" stroke="#23344a" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M50 50 Q74 14 98 50 Q92 45 86 50 Q80 45 74 50 Q68 45 62 50 Q56 45 50 50Z" fill="#3d8bef" stroke="#23344a" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="72" cy="78" r="5" fill="#f3c08a" stroke="#23344a" stroke-width="2"/>
+    </g>`;
+  const drops = `
+    <g fill="#3d8bef"><path d="M14 18 q3 5 0 7 q-3 -2 0 -7z"/><path d="M24 6 q3 5 0 7 q-3 -2 0 -7z"/><path d="M8 34 q3 5 0 7 q-3 -2 0 -7z"/></g>`;
+  const sun = `
+    <g><circle cx="84" cy="16" r="9" fill="#ffd24d" stroke="#23344a" stroke-width="2.5"/>
+    <g stroke="#23344a" stroke-width="2.5" stroke-linecap="round"><path d="M84 1v3"/><path d="M99 16h-3"/><path d="M94.6 5.4l-2 2"/><path d="M94.6 26.6l-2 -2"/></g></g>
+    <path d="M37 59 h6 M57 59 h6" stroke="#23344a" stroke-width="0"/>`;
+  const cloud = `
+    <g><path d="M70 26 a8 8 0 0 1 8 -9 a10 10 0 0 1 19 3 a7 7 0 0 1 -1 14 h-21 a7 7 0 0 1 -5 -8z" fill="#fff" stroke="#23344a" stroke-width="2.5" stroke-linejoin="round"/></g>`;
+  const snow = `
+    <g><path d="M30 44 Q50 26 70 44 Z" fill="#ff7d8b" stroke="#23344a" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="50" cy="28" r="5" fill="#fff" stroke="#23344a" stroke-width="2"/></g>
+    <g fill="#fff" stroke="#23344a" stroke-width="1.2"><circle cx="12" cy="18" r="3"/><circle cx="88" cy="12" r="3"/><circle cx="20" cy="40" r="2.5"/></g>`;
+  const extra = { rain: drops + umbrella, umbrella: umbrella, sunny: sun, cloudy: cloud, snow: snow, wait: "" }[mood] ?? "";
+  // 우산 소품은 몸 뒤가 아니라 앞에 오도록 몸을 먼저 그림
+  return body + extra;
+}
+function setHamster(mood) { $("ham").innerHTML = hamster(mood); }
+
+/* ---------- 날씨 아이콘 (예보 줄) ---------- */
+function wxIcon(h) {
+  const night = +h.hh < 6 || +h.hh >= 19;
+  if (h.pty === "3" || h.pty === "7") return `<svg viewBox="0 0 32 32"><path d="M8 18a6 6 0 0 1 6-7 7 7 0 0 1 13 2 5 5 0 0 1-1 10H9a5 5 0 0 1-1-5z" fill="#fff" stroke="#23344a" stroke-width="2"/><g fill="#fff" stroke="#23344a" stroke-width="1.2"><circle cx="12" cy="28" r="2"/><circle cx="20" cy="29" r="2"/></g></svg>`;
+  if (h.pty !== "0") return `<svg viewBox="0 0 32 32"><path d="M6 16a6 6 0 0 1 6-7 7 7 0 0 1 13 2 5 5 0 0 1-1 10H7a5 5 0 0 1-1-5z" fill="#cfe3fb" stroke="#23344a" stroke-width="2"/><g fill="#3d8bef"><path d="M11 24q2 3 0 5q-2-2 0-5z"/><path d="M19 24q2 3 0 5q-2-2 0-5z"/></g></svg>`;
+  if (h.sky === "1") return night
+    ? `<svg viewBox="0 0 32 32"><path d="M20 5a11 11 0 1 0 8 17A9 9 0 0 1 20 5z" fill="#ffe7a0" stroke="#23344a" stroke-width="2"/></svg>`
+    : `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="7" fill="#ffd24d" stroke="#23344a" stroke-width="2"/><g stroke="#23344a" stroke-width="2" stroke-linecap="round"><path d="M16 3v3M16 26v3M3 16h3M26 16h3M7 7l2 2M23 23l2 2M25 7l-2 2M9 23l-2 2"/></g></svg>`;
+  const shade = h.sky === "4" ? "#dde5ee" : "#fff";
+  const peek = h.sky === "3" ? (night ? `<path d="M22 4a7 7 0 1 0 6 11 6 6 0 0 1-6-11z" fill="#ffe7a0" stroke="#23344a" stroke-width="1.6"/>` : `<circle cx="22" cy="10" r="6" fill="#ffd24d" stroke="#23344a" stroke-width="1.6"/>`) : "";
+  return `<svg viewBox="0 0 32 32">${peek}<path d="M5 21a6 6 0 0 1 6-7 7 7 0 0 1 13 2 5 5 0 0 1-1 10H6a5 5 0 0 1-1-5z" fill="${shade}" stroke="#23344a" stroke-width="2"/></svg>`;
+}
+
+/* ---------- 동네 브리핑 ---------- */
+// "02시" → "새벽 2시", "17시" → "오후 5시"
+function speakHours(t) {
+  return t.replace(/(\d{2})시/g, (_, hh) => {
+    const h = +hh;
+    const part = h < 6 ? "새벽" : h < 12 ? "오전" : h < 18 ? "오후" : "밤";
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${part} ${h12}시`;
+  });
+}
+async function loadBrief() {
+  setHamster("wait");
+  try {
+    const res = await fetch(`${PROXY}?kind=brief`);
+    const b = await res.json();
+    if (!res.ok) throw Object.assign(new Error(b.error || "오류"), { detail: b.detail || "" });
+    $("headline").textContent = speakHours(b.headline);
+    $("sub").textContent = speakHours(b.sub);
+    setHamster(b.mood);
+    const n = b.now;
+    const pills = [];
+    if (n.t1h !== null) pills.push(`<span class="pill">지금 ${n.t1h}°</span>`);
+    if (n.ptyName) pills.push(`<span class="pill rain">${n.ptyName} 오는 중</span>`);
+    if (n.reh !== null) pills.push(`<span class="pill">습도 ${n.reh}%</span>`);
+    if (n.wsd !== null) pills.push(`<span class="pill">바람 ${n.wsd}m/s</span>`);
+    $("nowline").innerHTML = pills.join("");
+    $("when").textContent = `${n.base.slice(8, 10)}시 관측`;
+    $("fcstBase").textContent = `${b.fcstBase.slice(8, 10)}:${b.fcstBase.slice(10, 12)} 발표`;
+    $("strip").innerHTML = b.hours.slice(0, 6).map(h => `
+      <div class="slot${h.pty !== "0" ? " wet" : ""}">
+        <span class="hh">${+h.hh}시</span>${wxIcon(h)}
+        <span class="t">${h.t1h ?? "-"}°</span>
+        <span class="r">${h.pty !== "0" ? (h.rn1 ? h.rn1.replace("1mm 미만", "1mm↓") : h.ptyName) : ""}</span>
+      </div>`).join("");
+    const names = b.places.map(p => p.name).join("·");
+    $("cellnote").textContent = b.sameCell
+      ? `${names}은 같은 5km 예보칸이라 예보가 같아요.`
+      : `${names} 기준 예보예요.`;
+  } catch (e) {
+    setHamster("cloudy");
+    $("headline").textContent = "예보를 못 받았어요";
+    const d = (e.detail || "").toLowerCase();
+    $("sub").innerHTML = d.includes("활용") || d.includes("403")
+      ? `<span class="err">기상청 API허브에서 4.1 초단기실황·4.2 초단기예보 활용신청이 필요해요.</span>`
+      : `<span class="err">잠시 뒤 새로고침을 눌러주세요.</span>`;
+  }
+}
+
+/* ---------- 영상 (레이더 / 예측 / 위성) ---------- */
 const SAT_CH = [
-  { obs: "ir105", name: "적외", wl: "10.5μm", note: "밤낮 상관없이 보여요. 하얄수록 높고 차가운 구름이에요." },
-  { obs: "vi006", name: "가시", wl: "0.64μm", note: "사진처럼 보이지만 해가 있을 때만 찍혀요. 밤에는 검게 나와요." },
-  { obs: "wv069", name: "수증기", wl: "6.9μm", note: "중층 대기의 수증기예요. 구름이 생기기 전 습한 공기 흐름이 보여요." },
-  { obs: "sw038", name: "단파적외", wl: "3.8μm", note: "밤에 안개와 낮은 구름을 찾을 때 좋아요." },
+  { obs: "ir105", name: "적외", note: "밤낮 상관없이 보여요. 하얄수록 높고 차가운 구름이에요." },
+  { obs: "vi006", name: "가시", note: "사진처럼 보이지만 해가 있을 때만 찍혀요. 밤에는 까맣게 나와요." },
+  { obs: "wv069", name: "수증기", note: "구름이 생기기 전, 습한 공기가 흐르는 길이 보여요." },
+  { obs: "sw038", name: "단파적외", note: "밤에 안개와 낮은 구름을 찾을 때 좋아요." },
 ];
 const NOTES = {
-  radar: "날씨누리 레이더 강수와 같은 HSR 강수강도예요. 5분마다 갱신되고 10~20분쯤 늦게 올라와요.",
-  qpf: "지금 레이더를 바탕으로 10분 뒤부터 2시간 뒤까지 비구름 위치를 예측한 영상이에요.",
+  radar: "지금 실제로 비가 오는 곳이에요. ▶를 누르면 지난 2시간 동안 비구름이 어떻게 왔는지 보여요.",
+  qpf: "비구름이 앞으로 어디로 갈지 예측한 영상이에요. 10분 뒤부터 2시간 뒤까지.",
 };
-
 const S = { mode: "radar", obs: "ir105", frames: [], idx: 0, timer: null, token: 0, zoom: false };
 try {
   const saved = JSON.parse(localStorage.getItem("gureumchang") || "{}");
@@ -154,74 +293,59 @@ try {
 } catch (e) {}
 const save = () => { try { localStorage.setItem("gureumchang", JSON.stringify({ mode: S.mode, obs: S.obs })); } catch (e) {} };
 
-const $ = id => document.getElementById(id);
-const pad = n => String(n).padStart(2, "0");
 const parseTm = s => new Date(Date.UTC(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8), +s.slice(8,10), +s.slice(10,12)) - 9*3600e3);
 const fmtTm = d => { const k = new Date(d.getTime() + 9*3600e3); return `${k.getUTCFullYear()}${pad(k.getUTCMonth()+1)}${pad(k.getUTCDate())}${pad(k.getUTCHours())}${pad(k.getUTCMinutes())}`; };
 const hhmm = d => { const k = new Date(d.getTime() + 9*3600e3); return `${pad(k.getUTCHours())}:${pad(k.getUTCMinutes())}`; };
-const ago = d => { const m = Math.round((Date.now() - d.getTime()) / 60000); return m < 1 ? "방금" : m < 60 ? `${m}분 전` : `${Math.floor(m/60)}시간 ${m%60}분 전`; };
 
-function setStatus(text, state) { $("statusText").textContent = text; $("dot").className = "dot" + (state ? " " + state : ""); }
-function showMsg(title, body) { $("msg").hidden = false; $("msg").innerHTML = `<div><strong>${title}</strong>${body || ""}</div>`; }
+function showMsg(t, b) { $("msg").hidden = false; $("msg").innerHTML = `<div><strong>${t}</strong>${b || ""}</div>`; }
 function hideMsg() { $("msg").hidden = true; }
 
 async function getImage(params) {
-  const q = new URLSearchParams(params);
-  const res = await fetch(`${PROXY}?${q}`);
+  const res = await fetch(`${PROXY}?${new URLSearchParams(params)}`);
   const type = res.headers.get("content-type") || "";
   if (!res.ok || !type.includes("image")) {
-    let info = {};
-    try { info = await res.json(); } catch (e) {}
-    const err = new Error(info.error || `응답 오류 ${res.status}`);
-    err.detail = info.detail || ""; err.status = res.status;
-    throw err;
+    let info = {}; try { info = await res.json(); } catch (e) {}
+    throw Object.assign(new Error(info.error || `응답 오류 ${res.status}`), { detail: info.detail || "", status: res.status });
   }
-  const blob = await res.blob();
-  return { url: URL.createObjectURL(blob), tm: res.headers.get("x-kma-tm") };
+  return { url: URL.createObjectURL(await res.blob()), tm: res.headers.get("x-kma-tm") };
 }
-
 function explain(err) {
   const d = (err.detail || "").toLowerCase();
-  if (err.status === 503) return ["인증키가 아직 등록되지 않았어요", "Supabase Secrets에 <code>KMA_AUTH_KEY</code>를 넣어주세요."];
-  if (d.includes("403") || d.includes("권한") || d.includes("활용") || d.includes("auth")) return ["이 API의 활용신청이 필요해요", "기상청 API허브에서 해당 API를 활용신청한 뒤 다시 열어주세요."];
-  if (!navigator.onLine) return ["인터넷 연결이 끊겼어요", "연결되면 새로고침을 눌러주세요."];
-  return ["영상을 받지 못했어요", "기상청 서버가 잠시 느릴 수 있어요. 잠시 뒤 새로고침을 눌러주세요."];
+  if (err.status === 503) return ["인증키가 아직 없어요", "Supabase Secrets에 KMA_AUTH_KEY를 넣어주세요."];
+  if (d.includes("403") || d.includes("활용")) return ["활용신청이 필요해요", "기상청 API허브에서 이 영상의 API를 활용신청해 주세요."];
+  if (!navigator.onLine) return ["인터넷이 끊겼어요", "연결되면 새로고침을 눌러주세요."];
+  return ["영상을 못 받았어요", "기상청 서버가 잠깐 느린 것 같아요. 잠시 뒤 새로고침!"];
 }
 
 function renderControls() {
-  for (const b of document.querySelectorAll(".modes button")) b.setAttribute("aria-pressed", String(b.dataset.mode === S.mode));
-  const chips = $("chips");
+  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-pressed", String(b.dataset.mode === S.mode));
   if (S.mode === "sat") {
-    chips.hidden = false;
-    chips.innerHTML = SAT_CH.map(c => `<button id="ch-${c.obs}" data-obs="${c.obs}" aria-pressed="${c.obs === S.obs}">${c.name}<small>${c.wl}</small></button>`).join("");
+    $("chips").hidden = false;
+    $("chips").innerHTML = SAT_CH.map(c => `<button id="ch-${c.obs}" data-obs="${c.obs}" aria-pressed="${c.obs === S.obs}">${c.name}</button>`).join("");
     $("note").textContent = SAT_CH.find(c => c.obs === S.obs).note;
   } else {
-    chips.hidden = true; chips.innerHTML = "";
+    $("chips").hidden = true; $("chips").innerHTML = "";
     $("note").textContent = NOTES[S.mode];
   }
 }
-
-function frameLabel(f) { return S.mode === "qpf" ? `+${f.ef}분 · ${hhmm(f.at)}` : `${hhmm(f.at)} KST`; }
-
+const label = f => S.mode === "qpf" ? `+${f.ef}분 · ${hhmm(f.at)}` : `${hhmm(f.at)}`;
 function show(i) {
-  const f = S.frames[i];
-  if (!f) return;
+  const f = S.frames[i]; if (!f) return;
   S.idx = i; $("range").value = String(i);
   if (f.url) {
-    $("img").src = f.url; $("img").alt = `${S.mode === "radar" ? "레이더" : S.mode === "qpf" ? "강수예측" : "위성"} 영상 ${frameLabel(f)}`;
-    $("stamp").hidden = false; $("stamp").textContent = frameLabel(f); hideMsg();
+    $("img").src = f.url;
+    $("img").alt = `${S.mode === "radar" ? "레이더 강수" : S.mode === "qpf" ? "강수 예측" : "위성"} 영상 ${label(f)}`;
+    $("stamp").hidden = false; $("stamp").textContent = label(f); hideMsg();
   }
 }
-
 function updateTicks() {
   const fs = S.frames;
-  if (!fs.length) { $("tickL").textContent = "-"; $("tickR").textContent = "-"; return; }
+  if (!fs.length) { $("tickL").textContent = "-"; $("tickR").textContent = "-"; $("load").textContent = ""; return; }
   $("tickL").textContent = S.mode === "qpf" ? `+${fs[0].ef}분` : hhmm(fs[0].at);
   $("tickR").textContent = S.mode === "qpf" ? `+${fs[fs.length-1].ef}분` : "지금";
   const ok = fs.filter(f => f.url).length;
-  $("load").textContent = ok < fs.length ? `${ok}/${fs.length}` : "";
+  $("load").textContent = ok < fs.length ? `${ok}/${fs.length}장` : "";
 }
-
 function stop() { clearInterval(S.timer); S.timer = null; $("play").setAttribute("aria-pressed", "false"); $("play").setAttribute("aria-label", "재생"); $("playIcon").innerHTML = '<path d="M4 2.5v11l9-5.5z"/>'; }
 function play() {
   if (S.frames.filter(f => f.url).length < 2) return;
@@ -234,90 +358,73 @@ function play() {
   }, 450);
 }
 
-async function load() {
+async function loadImages() {
   const token = ++S.token;
   stop();
   S.frames.forEach(f => f.url && URL.revokeObjectURL(f.url));
   S.frames = []; updateTicks();
   $("img").removeAttribute("src"); $("stamp").hidden = true;
-  showMsg("영상을 불러오는 중이에요", "기상청 서버에서 받는 데 몇 초 걸릴 수 있어요.");
-  setStatus("불러오는 중");
-
+  showMsg("영상 불러오는 중", "몇 초 걸릴 수 있어요.");
   const base = S.mode === "sat" ? { kind: "sat", obs: S.obs } : S.mode === "radar" ? { kind: "radar" } : { kind: "qpf", ef: 60 };
   let latest;
   try { latest = await getImage(base); }
-  catch (err) {
-    if (token !== S.token) return;
-    const [t, b] = explain(err); showMsg(t, b); setStatus("받지 못함", "err"); return;
-  }
+  catch (err) { if (token !== S.token) return; const [t, b] = explain(err); showMsg(t, b); return; }
   if (token !== S.token) { URL.revokeObjectURL(latest.url); return; }
   const at = parseTm(latest.tm);
-
   if (S.mode === "qpf") {
     S.frames = Array.from({ length: 12 }, (_, i) => ({ ef: (i + 1) * 10, at: new Date(at.getTime() + (i + 1) * 600e3), url: null }));
-    S.frames[5].url = latest.url;
-    $("range").max = String(S.frames.length - 1); show(5);
-    setStatus(`예측 기준 ${hhmm(at)}`, "live");
+    S.frames[5].url = latest.url; $("range").max = "11"; show(5);
   } else {
     S.frames = Array.from({ length: FRAMES }, (_, i) => ({ at: new Date(at.getTime() - (FRAMES - 1 - i) * 600e3), url: null }));
-    S.frames[FRAMES - 1].url = latest.url;
-    $("range").max = String(FRAMES - 1); show(FRAMES - 1);
-    setStatus(`${hhmm(at)} 관측 · ${ago(at)}`, "live");
+    S.frames[FRAMES - 1].url = latest.url; $("range").max = String(FRAMES - 1); show(FRAMES - 1);
   }
   updateTicks();
-
-  // 나머지 프레임은 최신 쪽부터 두 장씩 받아오기
   const todo = S.frames.map((f, i) => i).filter(i => !S.frames[i].url).reverse();
   const worker = async () => {
     while (todo.length) {
-      const i = todo.shift();
-      const f = S.frames[i];
+      const i = todo.shift(); const f = S.frames[i];
       const p = S.mode === "qpf" ? { kind: "qpf", ef: f.ef, tm: latest.tm } : { ...base, tm: fmtTm(f.at) };
       try {
         const r = await getImage(p);
         if (token !== S.token) { URL.revokeObjectURL(r.url); return; }
-        f.url = r.url;
-        if (S.idx === i) show(i);
-      } catch (e) { if (token !== S.token) return; f.missing = true; }
+        f.url = r.url; if (S.idx === i) show(i);
+      } catch (e) { if (token !== S.token) return; }
       updateTicks();
     }
   };
   await Promise.all([worker(), worker()]);
   if (token !== S.token) return;
-  // 받지 못한 프레임은 시간축에서 뺌
-  const keep = S.frames.filter(f => f.url);
   const cur = S.frames[S.idx];
-  S.frames = keep; $("range").max = String(Math.max(0, keep.length - 1));
-  show(Math.max(0, keep.indexOf(cur)));
+  S.frames = S.frames.filter(f => f.url);
+  $("range").max = String(Math.max(0, S.frames.length - 1));
+  show(Math.max(0, S.frames.indexOf(cur)));
   updateTicks();
 }
 
-document.querySelector(".modes").addEventListener("click", e => {
+document.querySelector(".tabs").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b || b.dataset.mode === S.mode) return;
-  S.mode = b.dataset.mode; save(); renderControls(); load();
+  S.mode = b.dataset.mode; save(); renderControls(); loadImages();
 });
 $("chips").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b || b.dataset.obs === S.obs) return;
-  S.obs = b.dataset.obs; save(); renderControls(); load();
+  S.obs = b.dataset.obs; save(); renderControls(); loadImages();
 });
 $("range").addEventListener("input", e => { stop(); show(+e.target.value); });
 $("play").addEventListener("click", () => S.timer ? stop() : play());
-$("refresh").addEventListener("click", load);
+$("refresh").addEventListener("click", () => { loadBrief(); loadImages(); });
 $("zoomBtn").addEventListener("click", () => {
   S.zoom = !S.zoom; $("stage").classList.toggle("zoom", S.zoom);
   $("zoomBtn").setAttribute("aria-pressed", String(S.zoom)); $("zoomBtn").textContent = S.zoom ? "맞춤" : "2배";
 });
 
-// 화면을 다시 볼 때 5분 넘게 지났으면 새로 받기
 let loadedAt = Date.now();
-const origLoad = load;
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && Date.now() - loadedAt > 5 * 60e3) { loadedAt = Date.now(); origLoad(); }
-});
-setInterval(() => { if (document.visibilityState === "visible" && !S.timer) { loadedAt = Date.now(); origLoad(); } }, 10 * 60e3);
+const refreshAll = () => { loadedAt = Date.now(); loadBrief(); loadImages(); };
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && Date.now() - loadedAt > 5 * 60e3) refreshAll(); });
+setInterval(() => { if (document.visibilityState === "visible" && !S.timer) refreshAll(); }, 10 * 60e3);
 
 renderControls();
-load();
+loadBrief();
+loadImages();
 </script>
 </body>
 </html>
