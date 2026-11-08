@@ -1,13 +1,23 @@
 {
   "name": "구름창",
   "short_name": "구름창",
+  "description": "햄스터 기상캐스터가 알려주는 실시간 구름·비 예보",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#dff0ff",
   "theme_color": "#dff0ff",
   "icons": [
-    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
-  ]
+    {
+      "src": "icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "lang": "ko"
 }
