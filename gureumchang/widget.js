@@ -1,43 +1,46 @@
-// 구름창 위젯 (Scriptable)
-// 작은·중간·큰 위젯 모두 이 스크립트 하나로 동작해요.
-// - 작은 위젯: 햄스터 + 지금 기온 + 오늘 한 줄
-// - 중간 위젯: + 앞으로 6시간
-// - 큰 위젯:  + 우리 동네 레이더(확대)
-// 위젯을 누르면 구름창 웹앱이 열려요.
-// 비가 1시간 안에 오거나 지금 오기 시작하면 알림을 한 번 보내요(같은 비 소식엔 다시 안 보냄).
-//
-// [선택] 위젯 편집 > Parameter 칸에 "0.456,0.323" 처럼 우리 동네 위치를 넣으면 레이더 확대 위치를 바꿀 수 있어요.
+// 구름창 위젯 (Scriptable) — 중간 크기 위젯용
+// 위: 햄스터 · 오늘 한 줄(비 소식) · 최고/최저 · 지금 기온
+// 아래: 앞으로 6시간 칸 (비 오는 시간은 파랗게)
+// 위젯을 누르면 구름창(레이더 지도)이 열려요.
+// 비가 1시간 안에 오거나 지금 오기 시작하면 알림을 한 번 보내요(같은 비 소식은 6시간 동안 다시 안 보냄).
 
 const PROXY = "https://vtxdqesewrsgyhzdvhfo.supabase.co/functions/v1/kma-proxy";
 const APP = "https://zerosong0613-design.github.io/zerosong0613-design/gureumchang/";
 const HAM = (mood) => `${APP}ham-${mood}.png`;
-const HOME = (() => {
-  const p = (args.widgetParameter || "").split(",").map(Number);
-  return p.length === 2 && p.every((n) => n > 0 && n < 1) ? { u: p[0], v: p[1] } : { u: 0.456, v: 0.323 };
-})();
-const ZOOM = 4;
 
 const C = {
-  sky: new Color("#dff0ff"),
-  cream: new Color("#fffaf0"),
+  bg: new Color("#fffaf0"),
   ink: new Color("#23344a"),
   muted: new Color("#61758b"),
-  butter: new Color("#ffd24d"),
   rain: new Color("#3d8bef"),
+  sun: new Color("#f2a900"),
+  moon: new Color("#c9a227"),
+  cloud: new Color("#8fa3b8"),
   wetBg: new Color("#e6f1ff"),
+  line: new Color("#d7e3ef"),
 };
 const F = {
-  head: (s) => Font.boldRoundedSystemFont(s),
-  body: (s) => Font.mediumRoundedSystemFont(s),
+  big: Font.semiboldRoundedSystemFont(34),
+  title: Font.boldRoundedSystemFont(17),
+  hour: Font.boldRoundedSystemFont(12),
+  text: Font.semiboldRoundedSystemFont(13),
+  small: Font.mediumRoundedSystemFont(12),
+  temp: Font.semiboldRoundedSystemFont(13),
 };
 
+// "02시" → "새벽 2시"
 function speakHours(t) {
-  return t.replace(/(\d{2})시/g, (_, hh) => {
-    const h = +hh;
-    const part = h < 6 ? "새벽" : h < 12 ? "오전" : h < 18 ? "오후" : "밤";
-    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `${part} ${h12}시`;
-  });
+  return t.replace(/(\d{2})시/g, (_, hh) => `${ampm(+hh)}`);
+}
+function ampm(h) {
+  const part = h < 6 ? "새벽" : h < 12 ? "오전" : h < 18 ? "오후" : "밤";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${part} ${h12}시`;
+}
+function hourLabel(h) {
+  const part = h < 12 ? "오전" : "오후";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${part} ${h12}시`;
 }
 function symbolFor(h) {
   const night = +h.hh < 6 || +h.hh >= 19;
@@ -51,189 +54,134 @@ function symbolFor(h) {
 }
 function symbolColor(h) {
   if (h.pty !== "0") return C.rain;
-  if (h.sky === "1") return +h.hh < 6 || +h.hh >= 19 ? new Color("#c9a227") : new Color("#f2a900");
-  return C.muted;
+  if (h.sky === "1") return +h.hh < 6 || +h.hh >= 19 ? C.moon : C.sun;
+  return C.cloud;
 }
 
-async function loadJSON(url) {
-  const r = new Request(url);
-  r.timeoutInterval = 20;
-  return await r.loadJSON();
-}
-async function loadImage(url) {
-  const r = new Request(url);
-  r.timeoutInterval = 25;
-  return await r.loadImage();
+// 휴대폰 위치(약 3km 정확도) + 동 이름. 못 받으면 마지막으로 받은 위치, 그것도 없으면 우리 동네(분당)
+async function whereAmI() {
+  const fm = FileManager.local();
+  const path = fm.joinPath(fm.documentsDirectory(), "gureumchang-loc.json");
+  let last = null;
+  if (fm.fileExists(path)) { try { last = JSON.parse(fm.readString(path)); } catch (e) {} }
+  try {
+    Location.setAccuracyToThreeKilometers();
+    const loc = await Location.current();
+    let name = "";
+    try {
+      const g = await Location.reverseGeocode(loc.latitude, loc.longitude, "ko");
+      if (g && g[0]) name = g[0].subLocality || g[0].locality || "";
+    } catch (e) {}
+    const here = { lat: +loc.latitude.toFixed(2), lon: +loc.longitude.toFixed(2), name: name || "내 위치" };
+    fm.writeString(path, JSON.stringify(here));
+    return here;
+  } catch (e) {
+    return last;
+  }
 }
 
-// 레이더 영상에서 우리 동네 쪽을 잘라 확대
-function cropRadar(img, w, h) {
-  const ctx = new DrawContext();
-  ctx.size = new Size(w, h);
-  ctx.opaque = true;
-  ctx.respectScreenScale = true;
-  ctx.setFillColor(Color.white());
-  ctx.fillRect(new Rect(0, 0, w, h));
-  const iw = img.size.width, ih = img.size.height;
-  const k = (w / (iw / ZOOM)); // 화면 1pt당 배율
-  const dw = iw * k, dh = ih * k;
-  const x = w / 2 - HOME.u * dw;
-  const y = h / 2 - HOME.v * dh;
-  ctx.drawImageInRect(img, new Rect(x, y, dw, dh));
-  // 우리 동네 표시 (작은 노란 점)
-  ctx.setFillColor(C.butter);
-  ctx.setStrokeColor(C.ink);
-  ctx.setLineWidth(2);
-  const r = new Rect(w / 2 - 5, h / 2 - 5, 10, 10);
-  ctx.fillEllipse(r);
-  ctx.strokeEllipse(r);
-  return ctx.getImage();
-}
+async function getJSON(url) { const r = new Request(url); r.timeoutInterval = 20; return await r.loadJSON(); }
+async function getImage(url) { const r = new Request(url); r.timeoutInterval = 20; return await r.loadImage(); }
 
 async function maybeNotify(b) {
-  if (!b || !b.rainSoon) return;
+  if (!b.rainSoon) return;
   const fm = FileManager.local();
   const path = fm.joinPath(fm.documentsDirectory(), "gureumchang-alert.txt");
-  const last = fm.fileExists(path) ? fm.readString(path) : "";
-  // 같은 비 소식(같은 문장)에는 6시간 안에 다시 알리지 않음
-  if (last) {
-    const [lastTag, lastAt] = last.split("\n");
-    if (lastTag === b.headline && Date.now() - Number(lastAt) < 6 * 3600e3) return;
+  if (fm.fileExists(path)) {
+    const [lastHead, lastAt] = fm.readString(path).split("\n");
+    if (lastHead === b.headline && Date.now() - Number(lastAt) < 6 * 3600e3) return;
   }
   const n = new Notification();
-  n.title = "☂️ 구름창";
+  n.title = "구름창 ☂️";
   n.body = `${speakHours(b.headline)} · ${speakHours(b.sub)}`;
   n.openURL = APP;
   await n.schedule();
   fm.writeString(path, `${b.headline}\n${Date.now()}`);
 }
 
-function addHeader(stack, b, hamImg, big) {
-  const row = stack.addStack();
-  row.centerAlignContent();
-  if (hamImg) {
-    const im = row.addImage(hamImg);
-    im.imageSize = new Size(big ? 58 : 50, big ? 58 : 50);
-    row.addSpacer(6);
-  }
-  const col = row.addStack();
-  col.layoutVertically();
-  const t = col.addText(b && b.now.t1h !== null ? `${b.now.t1h}°` : "-°");
-  t.font = F.head(big ? 30 : 26);
-  t.textColor = C.ink;
-  const hl = b && b.today && b.today.tmx !== null ? `최고 ${b.today.tmx}° 최저 ${b.today.tmn}°` : "우리 동네";
-  const lab = col.addText(b && b.now.ptyName ? `${b.now.ptyName} 오는 중` : hl);
-  lab.font = F.body(11);
-  lab.textColor = b && b.now.ptyName ? C.rain : C.muted;
-  return row;
+// 지난 시각은 빼고 지금 시각부터
+function upcoming(hours) {
+  const k = new Date(Date.now() + 9 * 3600e3);
+  const nowKey = `${k.getUTCFullYear()}${String(k.getUTCMonth() + 1).padStart(2, "0")}${String(k.getUTCDate()).padStart(2, "0")}${String(k.getUTCHours()).padStart(2, "0")}00`;
+  return hours.filter((h) => `${h.date}${h.time}` >= nowKey);
 }
 
-function addHours(stack, hours, n) {
-  const row = stack.addStack();
-  row.spacing = 4;
-  for (const h of hours.slice(0, n)) {
-    const cell = row.addStack();
-    cell.layoutVertically();
-    cell.centerAlignContent();
-    cell.size = new Size(44, 0);
-    cell.setPadding(5, 4, 5, 4);
-    cell.cornerRadius = 10;
-    cell.backgroundColor = h.pty !== "0" ? C.wetBg : Color.white();
-    cell.borderColor = h.pty !== "0" ? C.rain : new Color("#d7e3ef");
-    cell.borderWidth = 1;
-    const top = cell.addStack(); top.addSpacer();
-    const hh = top.addText(`${+h.hh}시`); hh.font = F.head(11); hh.textColor = C.ink; top.addSpacer();
-    const mid = cell.addStack(); mid.addSpacer();
-    const sym = SFSymbol.named(symbolFor(h));
-    if (sym) { sym.applyFont(Font.systemFont(15)); const si = mid.addImage(sym.image); si.imageSize = new Size(18, 18); si.tintColor = symbolColor(h); }
-    mid.addSpacer();
-    const bot = cell.addStack(); bot.addSpacer();
-    const tt = bot.addText(`${h.t1h ?? "-"}°`); tt.font = F.body(11); tt.textColor = C.ink; bot.addSpacer();
-  }
+function txt(stack, s, font, color, opts = {}) {
+  const t = stack.addText(s);
+  t.font = font; t.textColor = color;
+  if (opts.lines) t.lineLimit = opts.lines;
+  if (opts.scale) t.minimumScaleFactor = opts.scale;
+  if (opts.right) t.rightAlignText();
+  return t;
 }
 
 async function build() {
-  const fam = config.widgetFamily || "large";
   const w = new ListWidget();
-  w.backgroundColor = C.sky;
+  w.backgroundColor = C.bg;
   w.url = APP;
   w.refreshAfterDate = new Date(Date.now() + 15 * 60e3);
-  w.setPadding(12, 12, 12, 12);
+  w.setPadding(12, 14, 12, 14);
 
-  let b = null, err = "";
-  try {
-    b = await loadJSON(`${PROXY}?kind=brief`);
-    if (b.error) { err = b.error; b = null; }
-  } catch (e) { err = "인터넷 연결을 확인해 주세요"; }
-
+  const here = await whereAmI();
+  const q = here ? `&lat=${here.lat}&lon=${here.lon}` : "";
+  let b = null;
+  try { b = await getJSON(`${PROXY}?kind=brief${q}`); if (b.error) b = null; } catch (e) {}
   let ham = null;
-  try { ham = await loadImage(HAM(b ? b.mood : "cloudy")); } catch (e) {}
+  try { ham = await getImage(HAM(b ? b.mood : "cloudy")); } catch (e) {}
 
   if (!b) {
-    addHeader(w, null, ham, false);
+    txt(w, "구름창", F.title, C.ink);
     w.addSpacer(6);
-    const t = w.addText("예보를 못 받았어요"); t.font = F.head(14); t.textColor = C.ink;
-    const s = w.addText(err); s.font = F.body(11); s.textColor = C.muted;
+    txt(w, "예보를 못 받았어요. 잠시 뒤 다시 볼게요.", F.small, C.muted, { lines: 2 });
     return w;
   }
+  try { await maybeNotify(b); } catch (e) {}
 
-  await maybeNotify(b);
-  const headline = speakHours(b.headline);
-  const sub = speakHours(b.sub);
-
-  if (fam === "small") {
-    addHeader(w, b, ham, false);
-    w.addSpacer(6);
-    const t = w.addText(headline); t.font = F.head(15); t.textColor = C.ink; t.minimumScaleFactor = 0.7; t.lineLimit = 2;
-    w.addSpacer();
-    const f = w.addText(`${b.now.base.slice(8, 10)}시 관측`); f.font = F.body(9); f.textColor = C.muted;
-    return w;
-  }
-
-  // 중간·큰 위젯: 위쪽 한 줄 요약
+  // ── 위쪽: 햄스터 + 오늘 한 줄 + 지금 기온 ──
+  const wet = !!b.now.ptyName || b.hours.some((h) => h.pty !== "0");
   const top = w.addStack();
   top.centerAlignContent();
-  if (ham) { const im = top.addImage(ham); im.imageSize = new Size(fam === "large" ? 48 : 54, fam === "large" ? 48 : 54); top.addSpacer(8); }
-  const col = top.addStack(); col.layoutVertically();
-  const ht = col.addText(headline); ht.font = F.head(fam === "large" ? 18 : 16); ht.textColor = C.ink; ht.lineLimit = 1; ht.minimumScaleFactor = 0.7;
-  const st = col.addText(sub); st.font = F.body(11); st.textColor = C.muted; st.lineLimit = 2;
+  if (ham) { const hi = top.addImage(ham); hi.imageSize = new Size(48, 48); top.addSpacer(8); }
+  const mid = top.addStack();
+  mid.layoutVertically();
+  const placeName = b.where === "here" && here ? here.name : "우리 동네";
+  txt(mid, `구름창 · ${placeName}`, F.small, C.muted, { lines: 1 });
+  txt(mid, speakHours(b.headline), F.title, wet ? C.rain : C.ink, { lines: 1, scale: 0.65 });
+  const hl = b.today && b.today.tmx !== null ? `최고 ${b.today.tmx}° · 최저 ${b.today.tmn}°` : (b.now.reh !== null ? `습도 ${b.now.reh}%` : "");
+  if (hl) txt(mid, hl, F.small, C.muted, { lines: 1 });
   top.addSpacer();
-  const tcol = top.addStack(); tcol.layoutVertically();
-  const tt = tcol.addText(b.now.t1h !== null ? `${b.now.t1h}°` : "-°"); tt.font = F.head(26); tt.textColor = C.ink;
-  const hlText = b.today && b.today.tmx !== null ? `${b.today.tmx}° / ${b.today.tmn}°` : (b.now.reh !== null ? `습도 ${b.now.reh}%` : "");
-  const rh = tcol.addText(hlText); rh.font = F.body(10); rh.textColor = C.muted;
+  txt(top, b.now.t1h !== null ? `${b.now.t1h}°` : "-°", F.big, C.ink);
 
-  if (fam === "large") {
-    w.addSpacer(8);
-    try {
-      const img = await loadImage(`${PROXY}?kind=radar&size=1440`);
-      const crop = cropRadar(img, 300, 136);
-      const box = w.addStack();
-      box.cornerRadius = 14;
-      box.borderColor = C.ink;
-      box.borderWidth = 2;
-      const pic = box.addImage(crop);
-      pic.imageSize = new Size(300, 136);
-      pic.applyFillingContentMode();
-      w.addSpacer(3);
-      const cap = w.addText("레이더 강수 · 노란 점이 우리 동네 · 누르면 크게 보기");
-      cap.font = F.body(9); cap.textColor = C.muted;
-    } catch (e) {
-      const t = w.addText("레이더 영상을 못 받았어요"); t.font = F.body(11); t.textColor = C.muted;
-    }
-  }
+  w.addSpacer();
 
-  w.addSpacer(8);
-  addHours(w, b.hours, 6);
-  if (fam === "medium") { w.addSpacer(); }
+  // ── 아래: 앞으로 6시간 (앱처럼 동글동글한 칸) ──
+  const row = w.addStack();
+  const list = upcoming(b.hours).slice(0, 6);
+  list.forEach((h, i) => {
+    const isWet = h.pty !== "0";
+    const cell = row.addStack();
+    cell.layoutVertically();
+    cell.size = new Size(44, 66);
+    cell.setPadding(5, 0, 5, 0);
+    cell.cornerRadius = 12;
+    cell.backgroundColor = isWet ? C.wetBg : Color.white();
+    cell.borderColor = isWet ? C.rain : C.line;
+    cell.borderWidth = 1.5;
+    const l1 = cell.addStack(); l1.addSpacer(); txt(l1, `${+h.hh}시`, F.hour, C.ink, { lines: 1 }); l1.addSpacer();
+    cell.addSpacer(3);
+    const l2 = cell.addStack(); l2.addSpacer();
+    const sym = SFSymbol.named(symbolFor(h));
+    if (sym) { const si = l2.addImage(sym.image); si.imageSize = new Size(20, 17); si.tintColor = symbolColor(h); }
+    l2.addSpacer();
+    cell.addSpacer(3);
+    const l3 = cell.addStack(); l3.addSpacer(); txt(l3, `${h.t1h ?? "-"}°`, F.temp, isWet ? C.rain : C.ink, { lines: 1 }); l3.addSpacer();
+    if (i < list.length - 1) row.addSpacer();
+  });
+
   return w;
 }
 
 const widget = await build();
-if (config.runsInWidget) {
-  Script.setWidget(widget);
-} else {
-  // 앱에서 실행하면 큰 위젯 미리보기
-  await widget.presentLarge();
-}
+if (config.runsInWidget) Script.setWidget(widget);
+else await widget.presentMedium();
 Script.complete();

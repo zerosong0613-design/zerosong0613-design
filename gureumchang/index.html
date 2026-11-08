@@ -118,7 +118,7 @@ footer a { color: var(--muted); }
 <section class="card hello" aria-live="polite">
   <svg id="ham" viewBox="0 0 100 100" role="img" aria-label="햄스터 기상캐스터"></svg>
   <div>
-    <div class="brand"><h1>구름창 · 우리 동네</h1><span class="when" id="when"></span></div>
+    <div class="brand"><h1 id="brandName">구름창</h1><span class="when" id="when"></span></div>
     <p class="headline" id="headline">하늘을 살펴보는 중이에요</p>
     <p class="sub" id="sub">기상청 예보를 받아오고 있어요.</p>
     <div class="nowline" id="nowline"></div>
@@ -248,7 +248,9 @@ function speakHours(t) {
 async function loadBrief() {
   setHamster("wait");
   try {
-    const res = await fetch(`${PROXY}?kind=brief`);
+    // 위치는 약 1km 단위로만 보냄(예보칸이 5km라 충분)
+    const q = me ? `&lat=${me.lat.toFixed(2)}&lon=${me.lon.toFixed(2)}` : "";
+    const res = await fetch(`${PROXY}?kind=brief${q}`);
     const b = await res.json();
     if (!res.ok) throw Object.assign(new Error(b.error || "오류"), { detail: b.detail || "" });
     $("headline").textContent = speakHours(b.headline);
@@ -270,10 +272,10 @@ async function loadBrief() {
         <span class="t">${h.t1h ?? "-"}°</span>
         <span class="r">${h.pty !== "0" ? (h.rn1 ? h.rn1.replace("1mm 미만", "1mm↓") : h.ptyName) : ""}</span>
       </div>`).join("");
-    const names = b.places.map(p => p.name).join("·");
-    $("cellnote").textContent = b.sameCell
-      ? `${names}은 같은 5km 예보칸이라 예보가 같아요.`
-      : `${names} 기준 예보예요.`;
+    $("brandName").textContent = b.where === "here" ? "구름창 · 내 위치" : "구름창 · 우리 동네";
+    $("cellnote").textContent = b.where === "here"
+      ? "지금 있는 곳의 5km 예보칸 기준이에요."
+      : "위치를 못 받아서 분당 기준으로 보여드려요.";
   } catch (e) {
     setHamster("cloudy");
     $("headline").textContent = "예보를 못 받았어요";
@@ -540,8 +542,10 @@ function locate(thenFocus) {
   if (!navigator.geolocation) { $("locBtn").textContent = "위치 사용 불가"; return; }
   $("locBtn").textContent = "찾는 중…";
   navigator.geolocation.getCurrentPosition(pos => {
+    const prev = me;
     me = { lat: +pos.coords.latitude.toFixed(4), lon: +pos.coords.longitude.toFixed(4) };
     try { localStorage.setItem("gc_me", JSON.stringify(me)); } catch (e) {}
+    if (!prev || Math.abs(prev.lat - me.lat) > 0.01 || Math.abs(prev.lon - me.lon) > 0.01) loadBrief();
     $("locBtn").textContent = "내 위치";
     if (thenFocus) goHere(); else applyZ(false);
   }, () => {
