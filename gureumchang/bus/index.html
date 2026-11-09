@@ -93,6 +93,19 @@ button { font: inherit; color: inherit; }
 footer { font-size: 12px; color: var(--muted); padding: 0 4px; display: flex; justify-content: space-between; gap: 8px; }
 footer a { color: var(--muted); }
 .err { color: #c2412d; }
+.alarm { display: grid; gap: 10px; }
+.alarm h2 { margin: 0; font-family: var(--f-display); font-size: 20px; font-weight: 400; }
+.alarm .sub { font-size: 13px; color: var(--muted); margin: 0; }
+.alarm .state { font-size: 15px; }
+.alarm .state b { font-weight: 400; background: var(--butter); border-radius: 6px; padding: 0 5px; }
+.pill { border: 2px solid var(--ink); background: #fff; border-radius: 999px; padding: 6px 14px; font-size: 14px; cursor: pointer; box-shadow: 0 2px 0 var(--ink); font-family: inherit; color: var(--ink); }
+.pill.on { background: var(--butter); }
+.pill:active { transform: translateY(2px); box-shadow: none; }
+.pick { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pick input { border: 2px solid var(--ink); border-radius: 12px; padding: 5px 10px; font-size: 15px; font-family: inherit; background: #fff; color: var(--ink); }
+.offs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.offs li { display: flex; justify-content: space-between; align-items: center; border: 1.5px dashed #c9d6e4; border-radius: 12px; padding: 6px 10px; font-size: 14px; }
+.offs button { border: 1.5px solid var(--ink); background: #fff; border-radius: 999px; padding: 1px 10px; font-size: 12px; cursor: pointer; color: var(--ink); font-family: inherit; }
 </style>
 </head>
 <body>
@@ -110,6 +123,15 @@ footer a { color: var(--muted); }
   <span class="auto" id="auto">20초마다 자동으로 새로고침해요</span>
   <button class="refresh" id="refresh">새로고침</button>
 </div>
+
+<section class="card alarm" id="alarm" hidden>
+  <h2>퇴근 알림</h2>
+  <p class="sub" id="alarmSub">평일 오후 4:20~5:10, 버스가 2정거장 안으로 오면 ntfy로 알려드려요</p>
+  <div class="state" id="alarmState"></div>
+  <div><button class="pill" id="todayBtn"></button></div>
+  <div class="pick"><input type="date" id="offDate" aria-label="알림 끌 날짜"><button class="pill" id="offBtn">이 날 끄기</button></div>
+  <ul class="offs" id="offList"></ul>
+</section>
 
 <footer>
   <span>자료: 경기도 버스정보 · 공공데이터포털</span>
@@ -230,6 +252,45 @@ async function load() {
 $("refresh").addEventListener("click", load);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(); else clearInterval(timer); });
 load();
+// ── 퇴근 알림 끄기·켜기 (설정 링크로 한 번 등록한 휴대폰에서만)
+(() => {
+  const q = new URLSearchParams(location.search);
+  if (q.get("mt")) { try { localStorage.setItem("bus_mt", q.get("mt")); } catch {} history.replaceState(null, "", location.pathname); }
+})();
+let MT = ""; try { MT = localStorage.getItem("bus_mt") || ""; } catch {}
+const WD = ["일", "월", "화", "수", "목", "금", "토"];
+const fmtDay = s => { const [y, m, d] = s.split("-").map(Number); const dt = new Date(y, m - 1, d); return `${m}월 ${d}일 (${WD[dt.getDay()]})`; };
+let alarm = null;
+function renderAlarm() {
+  if (!alarm) return;
+  $("alarm").hidden = false;
+  const offToday = alarm.mutedDays.includes(alarm.today);
+  const [sh, sm] = alarm.start.split(":"), [eh, em] = alarm.end.split(":");
+  $("alarmSub").textContent = `${alarm.weekdaysOnly ? "평일 " : ""}오후 ${sh - 12}:${sm}~${eh - 12}:${em}, 버스가 ${alarm.stops}정거장 안으로 오면 ntfy로 알려드려요`;
+  $("alarmState").innerHTML = offToday ? "오늘은 알림 <b>꺼짐</b>" : "오늘 알림 <b>켜짐</b>";
+  const tb = $("todayBtn"); tb.textContent = offToday ? "오늘 알림 다시 켜기" : "오늘 알림 끄기"; tb.classList.toggle("on", offToday);
+  $("offDate").min = alarm.today;
+  const future = alarm.mutedDays.filter(d => d !== alarm.today);
+  $("offList").innerHTML = future.length ? future.map(d => `<li><span>${fmtDay(d)} 꺼 둠</span><button data-day="${d}">다시 켜기</button></li>`).join("") : "";
+}
+async function alarmCall(params) {
+  const res = await fetch(`${PROXY}?${new URLSearchParams({ mt: MT, ...params })}`, { method: params.kind === "mute" ? "POST" : "GET", cache: "no-store" });
+  return res.json();
+}
+async function loadAlarm() {
+  if (!MT) return;
+  try { const j = await alarmCall({ kind: "mutestatus" }); if (j.ok) { alarm = j; renderAlarm(); } } catch {}
+}
+async function setDay(day, on) {
+  try {
+    const j = await alarmCall({ kind: "mute", day, quiet: "1", ...(on ? { on: "1" } : {}) });
+    if (j.ok) { alarm.mutedDays = j.mutedDays; renderAlarm(); }
+  } catch {}
+}
+$("todayBtn").addEventListener("click", () => setDay(alarm.today, alarm.mutedDays.includes(alarm.today)));
+$("offBtn").addEventListener("click", () => { const v = $("offDate").value; if (v && v >= alarm.today) { setDay(v, false); $("offDate").value = ""; } });
+$("offList").addEventListener("click", e => { const b = e.target.closest("button[data-day]"); if (b) setDay(b.dataset.day, true); });
+loadAlarm();
 </script>
 </body>
 </html>
