@@ -280,44 +280,77 @@ function speakHours(t) {
     return `${part} ${h12}시`;
   });
 }
+function renderBrief(b) {
+  $("headline").textContent = speakHours(b.headline);
+  $("sub").textContent = speakHours(b.sub);
+  setHamster(b.mood);
+  const n = b.now;
+  const pills = [];
+  if (n.t1h !== null) pills.push(`<span class="pill">지금 ${n.t1h}°</span>`);
+  if (b.today && b.today.tmx !== null && b.today.tmn !== null) pills.push(`<span class="pill">최고 ${b.today.tmx}° · 최저 ${b.today.tmn}°</span>`);
+  if (n.ptyName) pills.push(`<span class="pill rain">${n.ptyName} 오는 중</span>`);
+  if (n.reh !== null) pills.push(`<span class="pill">습도 ${n.reh}%</span>`);
+  if (n.wsd !== null) pills.push(`<span class="pill">바람 ${n.wsd}m/s</span>`);
+  $("nowline").innerHTML = pills.join("");
+  $("when").textContent = `${n.base.slice(8, 10)}시 관측`;
+  $("fcstBase").textContent = `${b.fcstBase.slice(8, 10)}:${b.fcstBase.slice(10, 12)} 발표`;
+  $("strip").innerHTML = b.hours.slice(0, 6).map(h => `
+    <div class="slot${h.pty !== "0" ? " wet" : ""}">
+      <span class="hh">${+h.hh}시</span>${wxIcon(h)}
+      <span class="t">${h.t1h ?? "-"}°</span>
+      <span class="r">${h.pty !== "0" ? (h.rn1 ? h.rn1.replace("1mm 미만", "1mm↓") : h.ptyName) : ""}</span>
+    </div>`).join("");
+  $("brandName").textContent = b.where === "here" ? "구름창 · 내 위치" : "구름창 · 우리 동네";
+  $("cellnote").textContent = (b.where === "here"
+    ? "지금 있는 곳의 5km 예보칸 기준이에요."
+    : "위치를 못 받아서 분당 기준으로 보여드려요.")
+    + (b.stale ? " 기상청 응답이 늦어 직전 예보를 보여드려요." : "");
+}
+
+// 직전 예보를 저장해 두었다가 앱을 열자마자 먼저 보여주고, 새 예보는 뒤에서 받아 바꿔 끼움
+const BRIEF_KEY = "gc_brief";
+let briefShown = false, briefToken = 0;
+function cachedBrief() {
+  try {
+    const c = JSON.parse(localStorage.getItem(BRIEF_KEY) || "null");
+    if (c && c.b && Date.now() - c.at < 12 * 3600e3) return c;
+  } catch (e) {}
+  return null;
+}
 async function loadBrief() {
-  setHamster("wait");
+  const token = ++briefToken;
+  if (!briefShown) {
+    const c = cachedBrief();
+    if (c) { renderBrief(c.b); briefShown = true; }
+    else setHamster("wait");
+  }
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 20000);
   try {
     // 위치는 약 1km 단위로만 보냄(예보칸이 5km라 충분)
     const q = me ? `&lat=${me.lat.toFixed(2)}&lon=${me.lon.toFixed(2)}` : "";
-    const res = await fetch(`${PROXY}?kind=brief${q}`);
+    const res = await fetch(`${PROXY}?kind=brief${q}`, { signal: ctl.signal });
     const b = await res.json();
     if (!res.ok) throw Object.assign(new Error(b.error || "오류"), { detail: b.detail || "" });
-    $("headline").textContent = speakHours(b.headline);
-    $("sub").textContent = speakHours(b.sub);
-    setHamster(b.mood);
-    const n = b.now;
-    const pills = [];
-    if (n.t1h !== null) pills.push(`<span class="pill">지금 ${n.t1h}°</span>`);
-    if (b.today && b.today.tmx !== null && b.today.tmn !== null) pills.push(`<span class="pill">최고 ${b.today.tmx}° · 최저 ${b.today.tmn}°</span>`);
-    if (n.ptyName) pills.push(`<span class="pill rain">${n.ptyName} 오는 중</span>`);
-    if (n.reh !== null) pills.push(`<span class="pill">습도 ${n.reh}%</span>`);
-    if (n.wsd !== null) pills.push(`<span class="pill">바람 ${n.wsd}m/s</span>`);
-    $("nowline").innerHTML = pills.join("");
-    $("when").textContent = `${n.base.slice(8, 10)}시 관측`;
-    $("fcstBase").textContent = `${b.fcstBase.slice(8, 10)}:${b.fcstBase.slice(10, 12)} 발표`;
-    $("strip").innerHTML = b.hours.slice(0, 6).map(h => `
-      <div class="slot${h.pty !== "0" ? " wet" : ""}">
-        <span class="hh">${+h.hh}시</span>${wxIcon(h)}
-        <span class="t">${h.t1h ?? "-"}°</span>
-        <span class="r">${h.pty !== "0" ? (h.rn1 ? h.rn1.replace("1mm 미만", "1mm↓") : h.ptyName) : ""}</span>
-      </div>`).join("");
-    $("brandName").textContent = b.where === "here" ? "구름창 · 내 위치" : "구름창 · 우리 동네";
-    $("cellnote").textContent = b.where === "here"
-      ? "지금 있는 곳의 5km 예보칸 기준이에요."
-      : "위치를 못 받아서 분당 기준으로 보여드려요.";
+    if (token !== briefToken) return; // 더 나중에 보낸 요청이 있으면 그 결과를 기다림
+    renderBrief(b);
+    briefShown = true;
+    try { localStorage.setItem(BRIEF_KEY, JSON.stringify({ at: Date.now(), b })); } catch (e) {}
   } catch (e) {
+    if (token !== briefToken) return;
+    if (briefShown) {
+      // 이미 보여주고 있는 예보는 그대로 두고 한 줄만 덧붙임
+      if (!/새 예보를 못 받았어요/.test($("cellnote").textContent)) $("cellnote").textContent += " 새 예보를 못 받았어요. 잠시 뒤 새로고침!";
+      return;
+    }
     setHamster("cloudy");
     $("headline").textContent = "예보를 못 받았어요";
     const d = (e.detail || "").toLowerCase();
     $("sub").innerHTML = d.includes("활용") || d.includes("403")
       ? `<span class="err">기상청 API허브에서 4.1 초단기실황·4.2 초단기예보 활용신청이 필요해요.</span>`
       : `<span class="err">잠시 뒤 새로고침을 눌러주세요.</span>`;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
