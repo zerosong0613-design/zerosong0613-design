@@ -93,16 +93,17 @@ button { font: inherit; color: inherit; }
 footer { font-size: 12px; color: var(--muted); padding: 0 4px; display: flex; justify-content: space-between; gap: 8px; }
 footer a { color: var(--muted); }
 .err { color: #c2412d; }
-.alarm { display: grid; gap: 10px; }
-.alarm h2 { margin: 0; font-family: var(--f-display); font-size: 20px; font-weight: 400; }
+.alarm { padding: 14px 16px; display: grid; gap: 10px; justify-items: start; }
+.alarm h2 { margin: 0; font-family: var(--f-display); font-size: 17px; font-weight: 400; color: var(--muted); }
+.alarm .offs { justify-self: stretch; }
 .alarm .sub { font-size: 13px; color: var(--muted); margin: 0; }
 .alarm .state { font-size: 15px; }
 .alarm .state b { font-weight: 400; background: var(--butter); border-radius: 6px; padding: 0 5px; }
-.pill { border: 2px solid var(--ink); background: #fff; border-radius: 999px; padding: 6px 14px; font-size: 14px; cursor: pointer; box-shadow: 0 2px 0 var(--ink); font-family: inherit; color: var(--ink); }
+.pill { border: 2px solid var(--ink); background: #fff; border-radius: 999px; padding: 5px 14px; font-size: 14px; cursor: pointer; box-shadow: 0 2px 0 var(--ink); font-family: inherit; color: var(--ink); }
 .pill.on { background: var(--butter); }
 .pill:active { transform: translateY(2px); box-shadow: none; }
 .pick { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.pick input { border: 2px solid var(--ink); border-radius: 12px; padding: 5px 10px; font-size: 15px; font-family: inherit; background: #fff; color: var(--ink); }
+.pick input { border: 2px solid var(--ink); border-radius: 999px; padding: 4px 12px; font-size: 14px; min-height: 34px; box-sizing: border-box; font-family: inherit; background: #fff; color: var(--ink); }
 .offs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .offs li { display: flex; justify-content: space-between; align-items: center; border: 1.5px dashed #c9d6e4; border-radius: 12px; padding: 6px 10px; font-size: 14px; }
 .offs button { border: 1.5px solid var(--ink); background: #fff; border-radius: 999px; padding: 1px 10px; font-size: 12px; cursor: pointer; color: var(--ink); font-family: inherit; }
