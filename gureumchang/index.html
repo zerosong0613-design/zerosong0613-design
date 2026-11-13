@@ -93,7 +93,23 @@ button { font: inherit; color: inherit; }
 .pill { display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid var(--ink); border-radius: 999px; padding: 1px 9px; font-size: 13px; background: #fff; font-variant-numeric: tabular-nums; }
 .pill.rain { background: var(--rain); color: #fff; border-color: var(--rain); }
 
-/* 2. 6시간 예보 */
+/* 2. 예보 카드 — 위에 인덱스 스티커 탭(6시간 / 1주일) */
+.fc { position: relative; padding-top: 36px; }
+.flags { position: absolute; top: 0; left: 18px; display: flex; gap: 6px; z-index: 0; }
+.flag {
+  --tip: var(--butter); --body: #fff3c4;
+  position: relative; width: 76px; height: 48px; padding: 5px 0 0; display: flex; justify-content: center; align-items: flex-start; border: 2px solid var(--ink); border-bottom: 0;
+  border-radius: 7px 7px 0 0; cursor: pointer; font-family: var(--f-display); font-size: 15px; line-height: 1.1;
+  background: linear-gradient(var(--tip) 0 29px, var(--body) 29px); color: var(--ink);
+  transform: translateY(7px); transition: transform .18s ease, filter .18s ease; filter: saturate(.55) brightness(1.04);
+}
+/* 스티커에 인쇄된 듯한 얇은 줄 */
+.flag::after { content: ""; position: absolute; left: 12px; right: 12px; top: 31.5px; height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--tip) 55%, #fff); }
+.flag.week { --tip: #7cc68f; --body: #e2f4e6; }
+.flag[aria-selected="true"] { transform: translateY(0); filter: none; }
+.flag:not([aria-selected="true"]):hover { transform: translateY(4px); }
+.fc > .card { position: relative; z-index: 1; }
+
 .hours { padding: 12px 10px 10px; }
 .hours h2, .viewer h2 { margin: 0 6px 8px; font-family: var(--f-display); font-weight: 400; font-size: 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .hours h2 small, .viewer h2 small { font-family: var(--f-body); font-size: 12px; color: var(--muted); }
@@ -105,6 +121,27 @@ button { font: inherit; color: inherit; }
 .slot .t { font-size: 14px; font-variant-numeric: tabular-nums; }
 .slot .r { font-size: 11px; color: var(--rain); min-height: 1.3em; line-height: 1.2; }
 .cellnote { margin: 8px 6px 0; font-size: 12px; color: var(--muted); }
+
+/* 1주일 */
+.week { list-style: none; margin: 0; padding: 0; display: grid; }
+.day { display: grid; grid-template-columns: 50px 62px 38px 1fr; align-items: center; gap: 6px; padding: 6px 6px; border-top: 1.5px dashed #d7e3ef; }
+.day:first-child { border-top: 0; }
+.day.wet { background: #eef5ff; border-radius: 12px; border-top-color: transparent; }
+.day.wet + .day { border-top-color: transparent; }
+.day .d { font-family: var(--f-display); font-size: 15px; line-height: 1.1; }
+.day .d small { display: block; font-family: var(--f-body); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.day .d.sat { color: var(--rain); } .day .d.sun { color: #d9534f; }
+.day .ic { display: flex; gap: 2px; }
+.day .ic svg { width: 28px; height: 28px; }
+.day .p { font-size: 12px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.day .p.hi { color: var(--rain); font-weight: 700; }
+.day .tt { display: grid; grid-template-columns: 30px 1fr 30px; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; font-size: 14px; }
+.day .tt .lo { text-align: right; color: var(--rain); }
+.day .tt .hi { color: #e0663a; }
+.bar { position: relative; height: 8px; border-radius: 99px; background: #e6edf4; }
+.bar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, #8cc2f7, #ffc36b); }
+.split { display: flex; align-items: center; gap: 8px; margin: 6px 6px 2px; font-size: 11px; color: var(--muted); }
+.split::before, .split::after { content: ""; flex: 1; border-top: 1.5px dotted #b9c8d8; }
 
 /* 3. 영상 */
 .viewer { padding: 12px 10px 12px; }
@@ -160,10 +197,23 @@ footer a { color: var(--muted); }
   </div>
 </section>
 
-<section class="card hours">
-  <h2>앞으로 6시간 <small id="fcstBase"></small></h2>
-  <div class="strip" id="strip"></div>
-  <p class="cellnote" id="cellnote"></p>
+<section class="fc">
+  <div class="flags" role="tablist" aria-label="예보 기간">
+    <button class="flag hours6" role="tab" id="tab-hours" aria-controls="pane-hours" aria-selected="true">6시간</button>
+    <button class="flag week" role="tab" id="tab-week" aria-controls="pane-week" aria-selected="false" tabindex="-1">1주일</button>
+  </div>
+  <div class="card hours">
+    <div id="pane-hours" role="tabpanel" aria-labelledby="tab-hours">
+      <h2>앞으로 6시간 <small id="fcstBase"></small></h2>
+      <div class="strip" id="strip"></div>
+      <p class="cellnote" id="cellnote"></p>
+    </div>
+    <div id="pane-week" role="tabpanel" aria-labelledby="tab-week" hidden>
+      <h2>앞으로 1주일 <small id="weekBase"></small></h2>
+      <ul class="week" id="week"></ul>
+      <p class="cellnote" id="weeknote"></p>
+    </div>
+  </div>
 </section>
 
 <section class="card viewer">
@@ -354,6 +404,82 @@ async function loadBrief() {
   }
 }
 
+/* ---------- 1주일 (인덱스 탭) ---------- */
+const WEEK_KEY = "gc_week";
+let weekShown = false, weekToken = 0, weekAt = 0;
+function dayLabel(d, i) {
+  if (i === 0) return "오늘";
+  if (i === 1) return "내일";
+  return `${d.dow}요일`;
+}
+function renderWeek(w) {
+  const days = w.days || [];
+  const temps = days.flatMap(d => [d.tmin, d.tmax]).filter(v => v !== null && v !== undefined);
+  const lo = Math.min(...temps), hi = Math.max(...temps), span = Math.max(1, hi - lo);
+  let html = "", splitDone = false;
+  days.forEach((d, i) => {
+    if (d.src === "mid" && !splitDone) { html += `<li class="split" aria-hidden="true">여기부터 ${w.midRegion || "권역"} 예보</li>`; splitDone = true; }
+    const halves = [d.am, d.pm].filter(Boolean);
+    const icons = halves.length ? halves.map(h => wxIcon({ sky: h.sky, pty: h.pty, hh: "12" })).join("") : "";
+    const pop = Math.max(d.popAm ?? -1, d.popPm ?? -1);
+    const wet = halves.some(h => h.pty !== "0") || pop >= 60;
+    const dowCls = d.dow === "토" ? " sat" : d.dow === "일" ? " sun" : "";
+    const left = d.tmin === null ? 0 : (d.tmin - lo) / span * 100;
+    const right = d.tmax === null ? 100 : (d.tmax - lo) / span * 100;
+    const desc = halves.map(h => h.wf || "").filter(Boolean).join(" → ");
+    html += `<li class="day${wet ? " wet" : ""}">
+      <span class="d${dowCls}">${dayLabel(d, i)}<small>${+d.date.slice(4, 6)}.${+d.date.slice(6, 8)}</small></span>
+      <span class="ic" title="${desc}">${icons}</span>
+      <span class="p${pop >= 40 ? " hi" : ""}">${pop >= 0 ? pop + "%" : ""}</span>
+      <span class="tt"><span class="lo">${d.tmin ?? "-"}°</span><span class="bar"><i style="left:${left}%;right:${100 - right}%"></i></span><span class="hi">${d.tmax ?? "-"}°</span></span>
+    </li>`;
+  });
+  $("week").innerHTML = html;
+  const sb = w.shortBase ? `${+w.shortBase.slice(8, 10)}시` : "";
+  const mb = w.midBase ? `${+w.midBase.slice(8, 10)}시` : "";
+  $("weekBase").textContent = [sb && `단기 ${sb}`, mb && `중기 ${mb}`].filter(Boolean).join(" · ") + (sb || mb ? " 발표" : "");
+  $("weeknote").textContent = (splitDone
+    ? `가까운 며칠은 지금 있는 곳 5km 칸, 그 뒤는 ${w.midRegion || "권역"} 날씨와 ${w.taRegion || ""} 기온이에요.`
+    : "지금 있는 곳 5km 칸 기준이에요.")
+    + (w.midError ? " 뒷날 예보는 아직 못 받았어요." : "");
+}
+async function loadWeek() {
+  const token = ++weekToken;
+  if (!weekShown) {
+    try { const c = JSON.parse(localStorage.getItem(WEEK_KEY) || "null"); if (c && c.w && Date.now() - c.at < 12 * 3600e3) { renderWeek(c.w); weekShown = true; } } catch (e) {}
+    if (!weekShown) { $("week").innerHTML = `<li class="day"><span class="d">…</span><span></span><span></span><span class="tt">일주일 예보를 받는 중이에요</span></li>`; }
+  }
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 25000);
+  try {
+    const q = me ? `&lat=${me.lat.toFixed(2)}&lon=${me.lon.toFixed(2)}` : "";
+    const res = await fetch(`${PROXY}?kind=week${q}`, { signal: ctl.signal });
+    const w = await res.json();
+    if (!res.ok || !Array.isArray(w.days)) throw new Error(w.error || "오류");
+    if (token !== weekToken) return;
+    renderWeek(w); weekShown = true; weekAt = Date.now();
+    try { localStorage.setItem(WEEK_KEY, JSON.stringify({ at: Date.now(), w })); } catch (e) {}
+  } catch (e) {
+    if (token !== weekToken) return;
+    if (!weekShown) $("week").innerHTML = `<li class="day"><span class="d">…</span><span></span><span></span><span class="tt err">일주일 예보를 못 받았어요. 잠시 뒤 새로고침!</span></li>`;
+    else $("weeknote").textContent += " 새 예보를 못 받았어요.";
+  } finally { clearTimeout(timer); }
+}
+function selectTab(which, focus) {
+  const isWeek = which === "week";
+  for (const [id, on] of [["tab-hours", !isWeek], ["tab-week", isWeek]]) {
+    $(id).setAttribute("aria-selected", String(on)); $(id).tabIndex = on ? 0 : -1;
+  }
+  $("pane-hours").hidden = isWeek; $("pane-week").hidden = !isWeek;
+  if (focus) $(isWeek ? "tab-week" : "tab-hours").focus();
+  try { localStorage.setItem("gc_tab", which); } catch (e) {}
+  if (isWeek && (!weekAt || Date.now() - weekAt > 30 * 60e3)) loadWeek();
+}
+$("tab-hours").addEventListener("click", () => selectTab("hours"));
+$("tab-week").addEventListener("click", () => selectTab("week"));
+document.querySelector(".flags").addEventListener("keydown", e => {
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); selectTab($("tab-week").getAttribute("aria-selected") === "true" ? "hours" : "week", true); }
+});
+
 /* ---------- 영상 (레이더 / 예측 / 위성) ---------- */
 const SAT_CH = [
   { obs: "ir105", name: "적외", note: "밤낮 상관없이 보여요. 하얄수록 높고 차가운 구름이에요." },
@@ -492,7 +618,7 @@ $("chips").addEventListener("click", e => {
 });
 $("range").addEventListener("input", e => { stop(); show(+e.target.value); });
 $("play").addEventListener("click", () => S.timer ? stop() : play());
-$("refresh").addEventListener("click", () => { loadBrief(); loadImages(); });
+$("refresh").addEventListener("click", () => { loadBrief(); loadImages(); if (!$("pane-week").hidden) { weekAt = 0; loadWeek(); } });
 /* ---------- 영상 확대·이동 (영상 칸 안에서만) ---------- */
 // 기상청 HR 지도(레이더·위성·예측 공통)의 위경도 → 지도 위치 변환
 // 기상청 표준 람베르트 도법(표준위도 30·60°, 기준 126°E 38°N). 서울·제주로 맞추고 울릉도로 검증한 값.
@@ -613,7 +739,7 @@ function locate(thenFocus) {
     const prev = me;
     me = { lat: +pos.coords.latitude.toFixed(4), lon: +pos.coords.longitude.toFixed(4) };
     try { localStorage.setItem("gc_me", JSON.stringify(me)); } catch (e) {}
-    if (!prev || Math.abs(prev.lat - me.lat) > 0.01 || Math.abs(prev.lon - me.lon) > 0.01) loadBrief();
+    if (!prev || Math.abs(prev.lat - me.lat) > 0.01 || Math.abs(prev.lon - me.lon) > 0.01) { loadBrief(); if (!$("pane-week").hidden) { weekAt = 0; loadWeek(); } }
     $("locBtn").textContent = "내 위치";
     if (thenFocus) goHere(); else applyZ(false);
   }, () => {
@@ -633,7 +759,7 @@ function restoreView() {
 }
 
 let loadedAt = Date.now();
-const refreshAll = () => { loadedAt = Date.now(); loadBrief(); loadImages(); };
+const refreshAll = () => { loadedAt = Date.now(); loadBrief(); loadImages(); if (!$("pane-week").hidden) { weekAt = 0; loadWeek(); } };
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && Date.now() - loadedAt > 5 * 60e3) refreshAll(); });
 setInterval(() => { if (document.visibilityState === "visible" && !S.timer) refreshAll(); }, 10 * 60e3);
 
@@ -641,6 +767,7 @@ renderControls();
 restoreView();
 loadBrief();
 loadImages();
+try { if (localStorage.getItem("gc_tab") === "week") selectTab("week"); } catch (e) {}
 </script>
 </body>
 </html>
