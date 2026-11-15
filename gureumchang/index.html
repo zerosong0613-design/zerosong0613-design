@@ -122,6 +122,11 @@ button { font: inherit; color: inherit; }
 .slot .r { font-size: 11px; color: var(--rain); min-height: 1.3em; line-height: 1.2; }
 .cellnote { margin: 8px 6px 0; font-size: 12px; color: var(--muted); }
 
+.more { display: flex; justify-content: flex-end; margin: 6px 4px 0; }
+.more a { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--ink); text-decoration: none; border: 1.5px solid var(--ink); border-radius: 999px; padding: 2px 10px 2px 11px; background: #fff; }
+.more a:active { background: var(--butter); }
+.more svg { width: 10px; height: 10px; }
+
 /* 1주일 */
 .week { list-style: none; margin: 0; padding: 0; display: grid; }
 .day { display: grid; grid-template-columns: 50px 62px 38px 1fr; align-items: center; gap: 6px; padding: 6px 6px; border-top: 1.5px dashed #d7e3ef; }
@@ -207,11 +212,13 @@ footer a { color: var(--muted); }
       <h2>앞으로 6시간 <small id="fcstBase"></small></h2>
       <div class="strip" id="strip"></div>
       <p class="cellnote" id="cellnote"></p>
+      <p class="more"><a href="https://www.weather.go.kr/w/forecast/overall/short-term.do" target="_blank" rel="noopener">날씨누리 시간별 예보 더 보기<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 6.5 5 3 8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a></p>
     </div>
     <div id="pane-week" role="tabpanel" aria-labelledby="tab-week" hidden>
       <h2>앞으로 1주일 <small id="weekBase"></small></h2>
       <ul class="week" id="week"></ul>
       <p class="cellnote" id="weeknote"></p>
+      <p class="more"><a href="https://www.weather.go.kr/w/forecast/overall/short-term.do" target="_blank" rel="noopener">날씨누리 10일 예보 보기<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 6.5 5 3 8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a></p>
     </div>
   </div>
 </section>
