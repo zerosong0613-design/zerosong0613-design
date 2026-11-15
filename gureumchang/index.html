@@ -413,7 +413,8 @@ function dayLabel(d, i) {
   return `${d.dow}요일`;
 }
 function renderWeek(w) {
-  const days = w.days || [];
+  // 아직 값이 없는 날(중기예보를 못 받은 뒷날)은 줄을 만들지 않음
+  const days = (w.days || []).filter(d => d.am || d.pm || d.tmin !== null || d.tmax !== null);
   const temps = days.flatMap(d => [d.tmin, d.tmax]).filter(v => v !== null && v !== undefined);
   const lo = Math.min(...temps), hi = Math.max(...temps), span = Math.max(1, hi - lo);
   let html = "", splitDone = false;
@@ -441,7 +442,7 @@ function renderWeek(w) {
   $("weeknote").textContent = (splitDone
     ? `가까운 며칠은 지금 있는 곳 5km 칸, 그 뒤는 ${w.midRegion || "권역"} 날씨와 ${w.taRegion || ""} 기온이에요.`
     : "지금 있는 곳 5km 칸 기준이에요.")
-    + (w.midError ? " 뒷날 예보는 아직 못 받았어요." : "");
+    + (days.length < (w.days || []).length ? ` 마지막 ${(w.days || []).length - days.length}일은 아직 예보를 못 받았어요.` : "");
 }
 async function loadWeek() {
   const token = ++weekToken;
