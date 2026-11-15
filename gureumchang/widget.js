@@ -83,6 +83,27 @@ async function whereAmI() {
 async function getJSON(url) { const r = new Request(url); r.timeoutInterval = 20; return await r.loadJSON(); }
 async function getImage(url) { const r = new Request(url); r.timeoutInterval = 20; return await r.loadImage(); }
 
+// 예보 받기: 모양이 맞는 응답만 쓰고(서버 오류 응답 대비), 한 번 더 시도한 뒤
+// 그래도 안 되면 마지막으로 받은 예보(6시간 이내)를 보여줌
+const BRIEF_CACHE = "gureumchang-brief.json";
+function validBrief(b) { return b && !b.error && b.now && Array.isArray(b.hours) && typeof b.headline === "string"; }
+async function getBrief(q) {
+  const fm = FileManager.local();
+  const path = fm.joinPath(fm.documentsDirectory(), BRIEF_CACHE);
+  for (let i = 0; i < 2; i++) {
+    try {
+      const b = await getJSON(`${PROXY}?kind=brief${q}`);
+      if (validBrief(b)) { try { fm.writeString(path, JSON.stringify({ at: Date.now(), b })); } catch (e) {} return { b, stale: null }; }
+    } catch (e) {}
+    if (i === 0) await new Promise((r) => Timer.schedule(1500, false, r));
+  }
+  try {
+    const c = JSON.parse(fm.readString(path));
+    if (validBrief(c.b) && Date.now() - c.at < 6 * 3600e3) return { b: c.b, stale: c.at };
+  } catch (e) {}
+  return { b: null, stale: null };
+}
+
 async function maybeNotify(b) {
   if (!b.rainSoon) return;
   const fm = FileManager.local();
@@ -124,8 +145,7 @@ async function build() {
 
   const here = await whereAmI();
   const q = here ? `&lat=${here.lat}&lon=${here.lon}` : "";
-  let b = null;
-  try { b = await getJSON(`${PROXY}?kind=brief${q}`); if (b.error) b = null; } catch (e) {}
+  const { b, stale } = await getBrief(q);
   let ham = null;
   try { ham = await getImage(HAM(b ? b.mood : "cloudy")); } catch (e) {}
 
@@ -135,7 +155,7 @@ async function build() {
     txt(w, "예보를 못 받았어요. 잠시 뒤 다시 볼게요.", F.small, C.muted, { lines: 2 });
     return w;
   }
-  try { await maybeNotify(b); } catch (e) {}
+  if (!stale) { try { await maybeNotify(b); } catch (e) {} }
 
   // ── 위쪽: 햄스터 + 오늘 한 줄 + 지금 기온 ──
   const wet = !!b.now.ptyName || b.hours.some((h) => h.pty !== "0");
@@ -145,7 +165,8 @@ async function build() {
   const mid = top.addStack();
   mid.layoutVertically();
   const placeName = b.where === "here" && here ? here.name : "우리 동네";
-  txt(mid, `구름창 · ${placeName}`, F.small, C.muted, { lines: 1 });
+  const staleTag = stale ? ` · ${new Date(stale).getHours()}:${String(new Date(stale).getMinutes()).padStart(2, "0")} 예보` : "";
+  txt(mid, `구름창 · ${placeName}${staleTag}`, F.small, C.muted, { lines: 1 });
   txt(mid, speakHours(b.headline), F.title, wet ? C.rain : C.ink, { lines: 1, scale: 0.65 });
   const hl = b.today && b.today.tmx !== null ? `최고 ${b.today.tmx}° · 최저 ${b.today.tmn}°` : (b.now.reh !== null ? `습도 ${b.now.reh}%` : "");
   if (hl) txt(mid, hl, F.small, C.muted, { lines: 1 });
