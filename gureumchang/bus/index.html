@@ -268,8 +268,9 @@ function renderAlarm() {
   const offToday = alarm.mutedDays.includes(alarm.today);
   const [sh, sm] = alarm.start.split(":"), [eh, em] = alarm.end.split(":");
   $("alarmSub").textContent = `${alarm.weekdaysOnly ? "평일 " : ""}오후 ${sh - 12}:${sm}~${eh - 12}:${em}, 버스가 ${alarm.stops}정거장 안으로 오면 ntfy로 알려드려요`;
-  $("alarmState").innerHTML = offToday ? "오늘은 알림 <b>꺼짐</b>" : "오늘 알림 <b>켜짐</b>";
-  const tb = $("todayBtn"); tb.textContent = offToday ? "오늘 알림 다시 켜기" : "오늘 알림 끄기"; tb.classList.toggle("on", offToday);
+  const auto = !offToday && alarm.autoOff; // 노션 근무 기록(재택·휴가·공동연차·오후반차·쉬는 날)으로 자동 꺼짐
+  $("alarmState").innerHTML = offToday ? "오늘은 알림 <b>꺼짐</b>" : auto ? `오늘은 ${alarm.autoOff}${((alarm.autoOff.charCodeAt(alarm.autoOff.length - 1) - 0xac00) % 28) ? "이라" : "라"} 알림 <b>꺼짐</b> · 노션 근무 기록` : "오늘 알림 <b>켜짐</b>";
+  const tb = $("todayBtn"); tb.hidden = !!auto; tb.textContent = offToday ? "오늘 알림 다시 켜기" : "오늘 알림 끄기"; tb.classList.toggle("on", offToday);
   $("offDate").min = alarm.today;
   const future = alarm.mutedDays.filter(d => d !== alarm.today);
   $("offList").innerHTML = future.length ? future.map(d => `<li><span>${fmtDay(d)} 꺼 둠</span><button data-day="${d}">다시 켜기</button></li>`).join("") : "";
