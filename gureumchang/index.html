@@ -349,7 +349,9 @@ function renderBrief(b) {
   if (n.reh !== null) pills.push(`<span class="pill">습도 ${n.reh}%</span>`);
   if (n.wsd !== null) pills.push(`<span class="pill">바람 ${n.wsd}m/s</span>`);
   $("nowline").innerHTML = pills.join("");
-  $("when").textContent = `${n.base.slice(8, 10)}시 관측`;
+  $("when").textContent = n.est && n.estAt
+    ? `${n.estAt.slice(0, 2)}:${n.estAt.slice(2, 4)} 추정 · ${n.base.slice(8, 10)}시 관측 기준`
+    : `${n.base.slice(8, 10)}시 관측`;
   $("fcstBase").textContent = `${b.fcstBase.slice(8, 10)}:${b.fcstBase.slice(10, 12)} 발표`;
   $("strip").innerHTML = b.hours.slice(0, 6).map(h => `
     <div class="slot${h.pty !== "0" ? " wet" : ""}">
