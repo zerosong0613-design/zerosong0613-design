@@ -1,7 +1,7 @@
 // 구름창 위젯 (Scriptable) — 중간 크기 위젯용
 // 위: 햄스터 · 오늘 한 줄(비 소식) · 최고/최저 · 지금 기온
 // 아래: 앞으로 6시간 칸 (비 오는 시간은 파랗게)
-// 지금 기온 아래 '○분 전'은 이 화면을 그린 뒤 지난 시간 — 위젯이 다시 안 그려져도 iOS가 계속 올려 줘요.
+// 지금 기온 아래 'HH:MM 기준'은 이 값을 받아 온 시각 — 오래된 화면인지 바로 보이게.
 // 위젯을 누르면 구름창(레이더 지도)이 열려요.
 // 비가 1시간 안에 오거나 지금 오기 시작하면 알림을 한 번 보내요(같은 비 소식은 6시간 동안 다시 안 보냄).
 
@@ -173,16 +173,13 @@ async function build() {
   const hl = b.today && b.today.tmx !== null ? `최고 ${b.today.tmx}° · 최저 ${b.today.tmn}°` : (b.now.reh !== null ? `습도 ${b.now.reh}%` : "");
   if (hl) txt(mid, hl, F.small, C.muted, { lines: 1 });
   top.addSpacer();
-  // 지금 기온 + 그 아래 '○분 전'(받아 온 뒤 지난 시간, 위젯이 멈춰 있어도 iOS가 계속 올림)
+  // 지금 기온 + 그 아래 'HH:MM 기준'(값을 받아 온 시각)
   const right = top.addStack();
   right.layoutVertically();
   const r1 = right.addStack(); r1.addSpacer();
   txt(r1, b.now.t1h !== null ? `${b.now.t1h}°` : "-°", F.big, C.ink, { lines: 1 });
   const r2 = right.addStack(); r2.addSpacer(); r2.centerAlignContent();
-  const ago = r2.addDate(drawnAt);
-  ago.applyRelativeStyle();
-  ago.font = F.tiny; ago.textColor = C.muted; ago.lineLimit = 1; ago.rightAlignText();
-  txt(r2, " 전", F.tiny, C.muted, { lines: 1 });
+  txt(r2, `${drawnAt.getHours()}:${String(drawnAt.getMinutes()).padStart(2, "0")} 기준`, F.tiny, C.muted, { lines: 1 });
 
   w.addSpacer();
 
