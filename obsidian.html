@@ -16,8 +16,9 @@ p{margin:0}small{display:block;margin-top:10px;color:#61758b}
 <body>
 <div class="c">
  <p id="msg">옵시디언을 여는 중이에요</p>
- <a id="go" href="#" hidden>옵시디언에서 열기</a>
- <small>노트 이름은 주소의 # 뒤에만 있어서 서버로 보내지지 않아요.</small>
+ <a id="go" href="#" hidden>이 노트 열기</a><br>
+ <a id="find" href="#" hidden style="background:#fff">검색으로 찾기</a>
+ <small>옵시디언이 꺼져 있었으면 첫 번째엔 마지막 노트가 열릴 수 있어요. 돌아와서 한 번 더 누르면 돼요.</small>
 </div>
 <script>
 {
@@ -27,8 +28,13 @@ p{margin:0}small{display:block;margin-top:10px;color:#61758b}
  const ok=path&&path.length<300&&!/[:\\]|\.\.|^\//.test(path);
  if(!ok){document.getElementById("msg").textContent="열 노트가 없어요";}
  else{
-  const url="obsidian://open?vault="+encodeURIComponent("송송지식")+"&file="+encodeURIComponent(path);
+  path=path.normalize("NFC");
+  const V=encodeURIComponent("송송지식");
+  const url="obsidian://open?vault="+V+"&file="+encodeURIComponent(path+".md");
   const a=document.getElementById("go");a.href=url;a.hidden=false;
+  const name=path.split("/").pop();
+  const f=document.getElementById("find");f.href="obsidian://search?vault="+V+"&query="+encodeURIComponent('"'+name+'"');f.hidden=false;
+  document.getElementById("msg").textContent=name;
   location.href=url;
  }
 }
