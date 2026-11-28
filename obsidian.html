@@ -22,14 +22,14 @@ p{margin:0}small{display:block;margin-top:10px;color:#61758b}
 </div>
 <script>
 {
- // 송송지식 볼트만 연다. 다른 앱·사이트로는 넘기지 않는다.
+ // 송송지식 볼트(아이폰 이름: 송송지식함)만 연다. 다른 앱·사이트로는 넘기지 않는다.
  let path="";
  try{path=decodeURIComponent(location.hash.slice(1))}catch(e){path=""}
  const ok=path&&path.length<300&&!/[:\\]|\.\.|^\//.test(path);
  if(!ok){document.getElementById("msg").textContent="열 노트가 없어요";}
  else{
   path=path.normalize("NFC");
-  const V=encodeURIComponent("송송지식");
+  const V=encodeURIComponent("송송지식함");
   const url="obsidian://open?vault="+V+"&file="+encodeURIComponent(path+".md");
   const a=document.getElementById("go");a.href=url;a.hidden=false;
   const name=path.split("/").pop();
